@@ -1,0 +1,612 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		04E5305D80D5AF343F6E8E32 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 10E9BAD8CCE3C621E610496B /* LaunchScreen.storyboard */; };
+		07A0DAAE514EB9881D058B29 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 682E71583A3ABB199C0861AD /* FirebaseAnalytics */; };
+		162FC34E85800503FF46C335 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 18D7B8B48234D5ECA66CEF28 /* GoogleService-Info.plist */; };
+		1870A05A1E22104DDC054E42 /* LyricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E365A76635E75C8C20EF34 /* LyricsView.swift */; };
+		2A55BBE5B8F7453CE8F9FCE2 /* RecordingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FF6A236F71D6C47CD01D7BC /* RecordingSheet.swift */; };
+		2C133092A9ABE90FD15775AF /* SongDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BD38CDA715B2967DCFD9968 /* SongDetailView.swift */; };
+		2CE8845094376675EE50EAE6 /* SingCoachApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF3D7E2FA361E15C1E9BE835 /* SingCoachApp.swift */; };
+		35A4434CE69C882EAFD60593 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA17E10439319846F430618 /* SettingsView.swift */; };
+		45F81578619BDEBCAFCACA3D /* AddSongView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB330796247FDF8F9152F804 /* AddSongView.swift */; };
+		50EFDFDFEA07BEEE716DBD0A /* PracticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45743C4E4E0EFE15A95FB81 /* PracticeView.swift */; };
+		550BD7FCD47F17A766DC17DA /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947D79FBD28A288AA7C357E3 /* TranscriptionService.swift */; };
+		55147E19A30C520D41284C17 /* SongsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31BEB052BC6D6151D5B1AA44 /* SongsListView.swift */; };
+		65882DB07C92E34EFFF11292 /* Exercise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48756E9B0770DECBDE3B1566 /* Exercise.swift */; };
+		6F23014E19AEAC74CC5796D6 /* AudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5318980AF21279E1AF2CB499 /* AudioPlaybackService.swift */; };
+		7A3FB48D71D00A5A4F102D01 /* SingCoachTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F579B7B2AA503517C0BE14E /* SingCoachTests.swift */; };
+		7ABBF23091F8DF4646DB6F08 /* SingCoachTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F78FCB56312F8A7684DB52 /* SingCoachTheme.swift */; };
+		7C431D55FC6EAB30637F5D08 /* ExerciseSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4485C00614BD8C5DF6E2C9 /* ExerciseSeeder.swift */; };
+		8B23A9B428F50EDA7755AE9F /* Lesson.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5459B9668824C39B2CAA0C14 /* Lesson.swift */; };
+		A237EBCA4C2603EEBEE1E345 /* Song.swift in Sources */ = {isa = PBXBuildFile; fileRef = C328FDA730545EE3516B2DF9 /* Song.swift */; };
+		A95674CF3240796233B459EB /* LRCLibService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09D0D077561DCBAC0CE5B39 /* LRCLibService.swift */; };
+		B6762BA58458A989B340A23C /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 0C8FD892FD7A1B383B44167B /* FirebaseCrashlytics */; };
+		B9B8D11A6507D2D7E944C82C /* AudioRecordingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40ED05EB329038D57C43C1EC /* AudioRecordingService.swift */; };
+		BECAA2288189B568BDF0A0E5 /* RecordingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7020937FCA9D63741A464B /* RecordingViewModel.swift */; };
+		C5346C11513304CE4F63F30C /* ExerciseDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749B7E109593AC6276AC327A /* ExerciseDetailSheet.swift */; };
+		C7ACFCD12A2EEAB3C2B32DAF /* LyricsLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9A995355BAFB9558B624180 /* LyricsLine.swift */; };
+		CE0987021739A12EB58F0A64 /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC04BA6572B6F8D7DA438A2 /* AnalyticsService.swift */; };
+		D4FB89B0B2AA229E13F91502 /* ExerciseRecommendationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1814C8AA3336727EAA503038 /* ExerciseRecommendationService.swift */; };
+		E003A1E28BC1FF79D6AB8546 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE63BADCF5275D24200190D3 /* ContentView.swift */; };
+		F214DAC388281667FF9B0F31 /* SongsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D8F8BB321CBED7418F90E42 /* SongsViewModel.swift */; };
+		F7317D4E6E86C3225F206D2F /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E4793EA7AD576C9950F638 /* EmptyStateView.swift */; };
+		F9A58A1C30FEC453845EFDF9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2103E89DE2BBF5C9795F3769 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A7D21D1E55D008D76443C125 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 88CD4E37060693E949E82A44 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72271B829823D5409192DDD5;
+			remoteInfo = SingCoach;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0D8F8BB321CBED7418F90E42 /* SongsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsViewModel.swift; sourceTree = "<group>"; };
+		10E9BAD8CCE3C621E610496B /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		1814C8AA3336727EAA503038 /* ExerciseRecommendationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseRecommendationService.swift; sourceTree = "<group>"; };
+		18D7B8B48234D5ECA66CEF28 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		2103E89DE2BBF5C9795F3769 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		31BEB052BC6D6151D5B1AA44 /* SongsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsListView.swift; sourceTree = "<group>"; };
+		34E365A76635E75C8C20EF34 /* LyricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsView.swift; sourceTree = "<group>"; };
+		3F579B7B2AA503517C0BE14E /* SingCoachTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingCoachTests.swift; sourceTree = "<group>"; };
+		40ED05EB329038D57C43C1EC /* AudioRecordingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingService.swift; sourceTree = "<group>"; };
+		43E697C3229345C7A8B4FBD0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		48756E9B0770DECBDE3B1566 /* Exercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exercise.swift; sourceTree = "<group>"; };
+		5318980AF21279E1AF2CB499 /* AudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlaybackService.swift; sourceTree = "<group>"; };
+		5459B9668824C39B2CAA0C14 /* Lesson.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lesson.swift; sourceTree = "<group>"; };
+		5E7020937FCA9D63741A464B /* RecordingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViewModel.swift; sourceTree = "<group>"; };
+		6FF6A236F71D6C47CD01D7BC /* RecordingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSheet.swift; sourceTree = "<group>"; };
+		749B7E109593AC6276AC327A /* ExerciseDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseDetailSheet.swift; sourceTree = "<group>"; };
+		7A4485C00614BD8C5DF6E2C9 /* ExerciseSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSeeder.swift; sourceTree = "<group>"; };
+		8FC04BA6572B6F8D7DA438A2 /* AnalyticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsService.swift; sourceTree = "<group>"; };
+		947D79FBD28A288AA7C357E3 /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
+		94F78FCB56312F8A7684DB52 /* SingCoachTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingCoachTheme.swift; sourceTree = "<group>"; };
+		95E4793EA7AD576C9950F638 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		9BD38CDA715B2967DCFD9968 /* SongDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailView.swift; sourceTree = "<group>"; };
+		A425C75B52A05BA5C576A7A0 /* SingCoach.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SingCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B45743C4E4E0EFE15A95FB81 /* PracticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeView.swift; sourceTree = "<group>"; };
+		C328FDA730545EE3516B2DF9 /* Song.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Song.swift; sourceTree = "<group>"; };
+		CB330796247FDF8F9152F804 /* AddSongView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSongView.swift; sourceTree = "<group>"; };
+		E09D0D077561DCBAC0CE5B39 /* LRCLibService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRCLibService.swift; sourceTree = "<group>"; };
+		E72CDB85DCE282C47C140C49 /* SingCoachTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SingCoachTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EE63BADCF5275D24200190D3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F9A995355BAFB9558B624180 /* LyricsLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsLine.swift; sourceTree = "<group>"; };
+		FEA17E10439319846F430618 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FF3D7E2FA361E15C1E9BE835 /* SingCoachApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingCoachApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		936FFFE6E73E08A2BBA0FC7A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				07A0DAAE514EB9881D058B29 /* FirebaseAnalytics in Frameworks */,
+				B6762BA58458A989B340A23C /* FirebaseCrashlytics in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0D9B885E1EF8D840853EB64E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A425C75B52A05BA5C576A7A0 /* SingCoach.app */,
+				E72CDB85DCE282C47C140C49 /* SingCoachTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7830C06492B83E7B2F6758D3 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				5E7020937FCA9D63741A464B /* RecordingViewModel.swift */,
+				0D8F8BB321CBED7418F90E42 /* SongsViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		952ED3EBC9DCB9AE9A80F0F5 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				94F78FCB56312F8A7684DB52 /* SingCoachTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		97408B3CCC082D23E705453A /* SingCoachTests */ = {
+			isa = PBXGroup;
+			children = (
+				3F579B7B2AA503517C0BE14E /* SingCoachTests.swift */,
+			);
+			path = SingCoachTests;
+			sourceTree = "<group>";
+		};
+		A324B03FC19A167F0C680C0B /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				8FC04BA6572B6F8D7DA438A2 /* AnalyticsService.swift */,
+				5318980AF21279E1AF2CB499 /* AudioPlaybackService.swift */,
+				40ED05EB329038D57C43C1EC /* AudioRecordingService.swift */,
+				1814C8AA3336727EAA503038 /* ExerciseRecommendationService.swift */,
+				7A4485C00614BD8C5DF6E2C9 /* ExerciseSeeder.swift */,
+				E09D0D077561DCBAC0CE5B39 /* LRCLibService.swift */,
+				947D79FBD28A288AA7C357E3 /* TranscriptionService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		AC2467B5C07F3D8FA68A0F44 = {
+			isa = PBXGroup;
+			children = (
+				E99FB4ABCAA9DD2849F86C0E /* SingCoach */,
+				97408B3CCC082D23E705453A /* SingCoachTests */,
+				0D9B885E1EF8D840853EB64E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C0E96F0A0E7ACF5BA6BD6721 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				CB330796247FDF8F9152F804 /* AddSongView.swift */,
+				EE63BADCF5275D24200190D3 /* ContentView.swift */,
+				95E4793EA7AD576C9950F638 /* EmptyStateView.swift */,
+				749B7E109593AC6276AC327A /* ExerciseDetailSheet.swift */,
+				34E365A76635E75C8C20EF34 /* LyricsView.swift */,
+				B45743C4E4E0EFE15A95FB81 /* PracticeView.swift */,
+				6FF6A236F71D6C47CD01D7BC /* RecordingSheet.swift */,
+				FEA17E10439319846F430618 /* SettingsView.swift */,
+				9BD38CDA715B2967DCFD9968 /* SongDetailView.swift */,
+				31BEB052BC6D6151D5B1AA44 /* SongsListView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		E99FB4ABCAA9DD2849F86C0E /* SingCoach */ = {
+			isa = PBXGroup;
+			children = (
+				2103E89DE2BBF5C9795F3769 /* Assets.xcassets */,
+				18D7B8B48234D5ECA66CEF28 /* GoogleService-Info.plist */,
+				43E697C3229345C7A8B4FBD0 /* Info.plist */,
+				10E9BAD8CCE3C621E610496B /* LaunchScreen.storyboard */,
+				FF3D7E2FA361E15C1E9BE835 /* SingCoachApp.swift */,
+				FB7145334B1A7BCD8E799C90 /* Models */,
+				A324B03FC19A167F0C680C0B /* Services */,
+				952ED3EBC9DCB9AE9A80F0F5 /* Theme */,
+				7830C06492B83E7B2F6758D3 /* ViewModels */,
+				C0E96F0A0E7ACF5BA6BD6721 /* Views */,
+			);
+			path = SingCoach;
+			sourceTree = "<group>";
+		};
+		FB7145334B1A7BCD8E799C90 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				48756E9B0770DECBDE3B1566 /* Exercise.swift */,
+				5459B9668824C39B2CAA0C14 /* Lesson.swift */,
+				F9A995355BAFB9558B624180 /* LyricsLine.swift */,
+				C328FDA730545EE3516B2DF9 /* Song.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0C2965A0BB378CA6CDFAE42B /* SingCoachTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B279F21BFBD747DA5159EF7D /* Build configuration list for PBXNativeTarget "SingCoachTests" */;
+			buildPhases = (
+				82D32F8FA1DE8F4C55496EA1 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1B0C79C1EAB4EE7A0006BA55 /* PBXTargetDependency */,
+			);
+			name = SingCoachTests;
+			packageProductDependencies = (
+			);
+			productName = SingCoachTests;
+			productReference = E72CDB85DCE282C47C140C49 /* SingCoachTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		72271B829823D5409192DDD5 /* SingCoach */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B099C6DFA9361DA3620FDA65 /* Build configuration list for PBXNativeTarget "SingCoach" */;
+			buildPhases = (
+				2366E4E58EE471307ACA0291 /* Sources */,
+				29F38ADACE82BB9635DE7A77 /* Resources */,
+				936FFFE6E73E08A2BBA0FC7A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SingCoach;
+			packageProductDependencies = (
+				682E71583A3ABB199C0861AD /* FirebaseAnalytics */,
+				0C8FD892FD7A1B383B44167B /* FirebaseCrashlytics */,
+			);
+			productName = SingCoach;
+			productReference = A425C75B52A05BA5C576A7A0 /* SingCoach.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		88CD4E37060693E949E82A44 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					0C2965A0BB378CA6CDFAE42B = {
+						DevelopmentTeam = B5X96QDRF4;
+						ProvisioningStyle = Automatic;
+					};
+					72271B829823D5409192DDD5 = {
+						DevelopmentTeam = B5X96QDRF4;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 2E0B9D5CDF3E06D424CF4335 /* Build configuration list for PBXProject "SingCoach" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = AC2467B5C07F3D8FA68A0F44;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7C292156A5F8610795C6B758 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				72271B829823D5409192DDD5 /* SingCoach */,
+				0C2965A0BB378CA6CDFAE42B /* SingCoachTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		29F38ADACE82BB9635DE7A77 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F9A58A1C30FEC453845EFDF9 /* Assets.xcassets in Resources */,
+				162FC34E85800503FF46C335 /* GoogleService-Info.plist in Resources */,
+				04E5305D80D5AF343F6E8E32 /* LaunchScreen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2366E4E58EE471307ACA0291 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				45F81578619BDEBCAFCACA3D /* AddSongView.swift in Sources */,
+				CE0987021739A12EB58F0A64 /* AnalyticsService.swift in Sources */,
+				6F23014E19AEAC74CC5796D6 /* AudioPlaybackService.swift in Sources */,
+				B9B8D11A6507D2D7E944C82C /* AudioRecordingService.swift in Sources */,
+				E003A1E28BC1FF79D6AB8546 /* ContentView.swift in Sources */,
+				F7317D4E6E86C3225F206D2F /* EmptyStateView.swift in Sources */,
+				65882DB07C92E34EFFF11292 /* Exercise.swift in Sources */,
+				C5346C11513304CE4F63F30C /* ExerciseDetailSheet.swift in Sources */,
+				D4FB89B0B2AA229E13F91502 /* ExerciseRecommendationService.swift in Sources */,
+				7C431D55FC6EAB30637F5D08 /* ExerciseSeeder.swift in Sources */,
+				A95674CF3240796233B459EB /* LRCLibService.swift in Sources */,
+				8B23A9B428F50EDA7755AE9F /* Lesson.swift in Sources */,
+				C7ACFCD12A2EEAB3C2B32DAF /* LyricsLine.swift in Sources */,
+				1870A05A1E22104DDC054E42 /* LyricsView.swift in Sources */,
+				50EFDFDFEA07BEEE716DBD0A /* PracticeView.swift in Sources */,
+				2A55BBE5B8F7453CE8F9FCE2 /* RecordingSheet.swift in Sources */,
+				BECAA2288189B568BDF0A0E5 /* RecordingViewModel.swift in Sources */,
+				35A4434CE69C882EAFD60593 /* SettingsView.swift in Sources */,
+				2CE8845094376675EE50EAE6 /* SingCoachApp.swift in Sources */,
+				7ABBF23091F8DF4646DB6F08 /* SingCoachTheme.swift in Sources */,
+				A237EBCA4C2603EEBEE1E345 /* Song.swift in Sources */,
+				2C133092A9ABE90FD15775AF /* SongDetailView.swift in Sources */,
+				55147E19A30C520D41284C17 /* SongsListView.swift in Sources */,
+				F214DAC388281667FF9B0F31 /* SongsViewModel.swift in Sources */,
+				550BD7FCD47F17A766DC17DA /* TranscriptionService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		82D32F8FA1DE8F4C55496EA1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A3FB48D71D00A5A4F102D01 /* SingCoachTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1B0C79C1EAB4EE7A0006BA55 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72271B829823D5409192DDD5 /* SingCoach */;
+			targetProxy = A7D21D1E55D008D76443C125 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		607BB49DC7782FFBD8E9DC4A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = B5X96QDRF4;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SingCoach/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		654A79432D92CA7E0288A4B4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = B5X96QDRF4;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		7D229F8EBB3C77BD98330ACA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = B5X96QDRF4;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SingCoach/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A03817C1E2A778ECCAC3F16A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = B5X96QDRF4;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		C247FE3388B6C9B572F38F9B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = B5X96QDRF4;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aet.SingCoachTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
+			};
+			name = Release;
+		};
+		FE583BEE1C4A8882F1D28809 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = B5X96QDRF4;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.aet.SingCoachTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2E0B9D5CDF3E06D424CF4335 /* Build configuration list for PBXProject "SingCoach" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A03817C1E2A778ECCAC3F16A /* Debug */,
+				654A79432D92CA7E0288A4B4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B099C6DFA9361DA3620FDA65 /* Build configuration list for PBXNativeTarget "SingCoach" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7D229F8EBB3C77BD98330ACA /* Debug */,
+				607BB49DC7782FFBD8E9DC4A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B279F21BFBD747DA5159EF7D /* Build configuration list for PBXNativeTarget "SingCoachTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FE583BEE1C4A8882F1D28809 /* Debug */,
+				C247FE3388B6C9B572F38F9B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7C292156A5F8610795C6B758 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0C8FD892FD7A1B383B44167B /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C292156A5F8610795C6B758 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		682E71583A3ABB199C0861AD /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C292156A5F8610795C6B758 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 88CD4E37060693E949E82A44 /* Project object */;
+}

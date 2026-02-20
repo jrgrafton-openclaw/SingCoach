@@ -1,0 +1,63 @@
+# SingCoach - XcodeGen project spec
+# Bundle ID: com.aet.mastersudku (registered in App Store Connect app 6759428832)
+# Rules: no info.path, no CURRENT_PROJECT_VERSION, no MARKETING_VERSION
+
+name: SingCoach
+options:
+  bundleIdPrefix: com.aet
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+  developmentLanguage: en
+
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 11.0.0
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: B5X96QDRF4
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "6.0"
+    VERSIONING_SYSTEM: apple-generic
+    # CURRENT_PROJECT_VERSION and MARKETING_VERSION managed by fastlane — do NOT set here
+
+targets:
+  SingCoach:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: SingCoach
+        excludes:
+          - "GoogleService-Info.plist"
+      - path: SingCoach/GoogleService-Info.plist
+        buildPhase: resources
+    dependencies:
+      - package: Firebase
+        products:
+          - FirebaseAnalytics
+          - FirebaseCrashlytics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aet.mastersudku
+        INFOPLIST_FILE: SingCoach/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_IDENTITY: "Apple Development"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: B5X96QDRF4
+
+  SingCoachTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources: [SingCoachTests]
+    dependencies:
+      - target: SingCoach
+    settings:
+      base:
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach"
+        DEVELOPMENT_TEAM: B5X96QDRF4
+        GENERATE_INFOPLIST_FILE: true
