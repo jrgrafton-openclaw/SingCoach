@@ -215,8 +215,6 @@
 				1B0C79C1EAB4EE7A0006BA55 /* PBXTargetDependency */,
 			);
 			name = SingCoachTests;
-			packageProductDependencies = (
-			);
 			productName = SingCoachTests;
 			productReference = E72CDB85DCE282C47C140C49 /* SingCoachTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -275,6 +273,7 @@
 				7C292156A5F8610795C6B758 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = 0D9B885E1EF8D840853EB64E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -353,8 +352,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution: james grafton";
+				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = B5X96QDRF4;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SingCoach/Info.plist;
@@ -364,6 +363,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
+				PROVISIONING_PROFILE = "bae9fccf-9f64-4306-9dfb-b2711d232b98";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -404,6 +404,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = B5X96QDRF4;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -417,6 +418,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -432,8 +434,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution: james grafton";
+				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = B5X96QDRF4;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SingCoach/Info.plist;
@@ -443,6 +445,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
+				PROVISIONING_PROFILE = "bae9fccf-9f64-4306-9dfb-b2711d232b98";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -483,6 +486,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = B5X96QDRF4;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -502,6 +506,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -518,6 +523,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Distribution: james grafton";
+				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = B5X96QDRF4;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -526,7 +533,8 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.aet.SingCoachTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
+				PROVISIONING_PROFILE = "bae9fccf-9f64-4306-9dfb-b2711d232b98";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
@@ -537,6 +545,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Distribution: james grafton";
+				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = B5X96QDRF4;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -545,7 +555,8 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.aet.SingCoachTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
+				PROVISIONING_PROFILE = "bae9fccf-9f64-4306-9dfb-b2711d232b98";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
