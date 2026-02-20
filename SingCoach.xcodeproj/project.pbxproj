@@ -35,6 +35,7 @@
 		CE0987021739A12EB58F0A64 /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC04BA6572B6F8D7DA438A2 /* AnalyticsService.swift */; };
 		D4FB89B0B2AA229E13F91502 /* ExerciseRecommendationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1814C8AA3336727EAA503038 /* ExerciseRecommendationService.swift */; };
 		E003A1E28BC1FF79D6AB8546 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE63BADCF5275D24200190D3 /* ContentView.swift */; };
+		E3E97DB26563268CF513E976 /* MusicKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4E2B6F92146EE229D31E20 /* MusicKitService.swift */; };
 		F214DAC388281667FF9B0F31 /* SongsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D8F8BB321CBED7418F90E42 /* SongsViewModel.swift */; };
 		F7317D4E6E86C3225F206D2F /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E4793EA7AD576C9950F638 /* EmptyStateView.swift */; };
 		F9A58A1C30FEC453845EFDF9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2103E89DE2BBF5C9795F3769 /* Assets.xcassets */; };
@@ -67,6 +68,7 @@
 		5E7020937FCA9D63741A464B /* RecordingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViewModel.swift; sourceTree = "<group>"; };
 		6FF6A236F71D6C47CD01D7BC /* RecordingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSheet.swift; sourceTree = "<group>"; };
 		749B7E109593AC6276AC327A /* ExerciseDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseDetailSheet.swift; sourceTree = "<group>"; };
+		79ED152F6172D320839BB62F /* SingCoach.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SingCoach.entitlements; sourceTree = "<group>"; };
 		7A4485C00614BD8C5DF6E2C9 /* ExerciseSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSeeder.swift; sourceTree = "<group>"; };
 		8FC04BA6572B6F8D7DA438A2 /* AnalyticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsService.swift; sourceTree = "<group>"; };
 		947D79FBD28A288AA7C357E3 /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
@@ -74,6 +76,7 @@
 		95E4793EA7AD576C9950F638 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		9BD38CDA715B2967DCFD9968 /* SongDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailView.swift; sourceTree = "<group>"; };
 		A425C75B52A05BA5C576A7A0 /* SingCoach.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SingCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC4E2B6F92146EE229D31E20 /* MusicKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicKitService.swift; sourceTree = "<group>"; };
 		B45743C4E4E0EFE15A95FB81 /* PracticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeView.swift; sourceTree = "<group>"; };
 		C328FDA730545EE3516B2DF9 /* Song.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Song.swift; sourceTree = "<group>"; };
 		CB330796247FDF8F9152F804 /* AddSongView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSongView.swift; sourceTree = "<group>"; };
@@ -141,6 +144,7 @@
 				1814C8AA3336727EAA503038 /* ExerciseRecommendationService.swift */,
 				7A4485C00614BD8C5DF6E2C9 /* ExerciseSeeder.swift */,
 				E09D0D077561DCBAC0CE5B39 /* LRCLibService.swift */,
+				AC4E2B6F92146EE229D31E20 /* MusicKitService.swift */,
 				947D79FBD28A288AA7C357E3 /* TranscriptionService.swift */,
 			);
 			path = Services;
@@ -179,6 +183,7 @@
 				18D7B8B48234D5ECA66CEF28 /* GoogleService-Info.plist */,
 				43E697C3229345C7A8B4FBD0 /* Info.plist */,
 				10E9BAD8CCE3C621E610496B /* LaunchScreen.storyboard */,
+				79ED152F6172D320839BB62F /* SingCoach.entitlements */,
 				FF3D7E2FA361E15C1E9BE835 /* SingCoachApp.swift */,
 				FB7145334B1A7BCD8E799C90 /* Models */,
 				A324B03FC19A167F0C680C0B /* Services */,
@@ -315,6 +320,7 @@
 				8B23A9B428F50EDA7755AE9F /* Lesson.swift in Sources */,
 				C7ACFCD12A2EEAB3C2B32DAF /* LyricsLine.swift in Sources */,
 				1870A05A1E22104DDC054E42 /* LyricsView.swift in Sources */,
+				E3E97DB26563268CF513E976 /* MusicKitService.swift in Sources */,
 				50EFDFDFEA07BEEE716DBD0A /* PracticeView.swift in Sources */,
 				2A55BBE5B8F7453CE8F9FCE2 /* RecordingSheet.swift in Sources */,
 				BECAA2288189B568BDF0A0E5 /* RecordingViewModel.swift in Sources */,
@@ -352,6 +358,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = SingCoach/SingCoach.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution: james grafton";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = B5X96QDRF4;
@@ -363,7 +370,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
-				PROVISIONING_PROFILE = "bae9fccf-9f64-4306-9dfb-b2711d232b98";
+				PROVISIONING_PROFILE = "43837c95-5e5e-45de-ac9a-5afd4e926a3a";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -404,7 +411,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = B5X96QDRF4;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -434,6 +441,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = SingCoach/SingCoach.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution: james grafton";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = B5X96QDRF4;
@@ -445,7 +453,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
-				PROVISIONING_PROFILE = "bae9fccf-9f64-4306-9dfb-b2711d232b98";
+				PROVISIONING_PROFILE = "43837c95-5e5e-45de-ac9a-5afd4e926a3a";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -486,7 +494,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = B5X96QDRF4;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -534,7 +542,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
-				PROVISIONING_PROFILE = "bae9fccf-9f64-4306-9dfb-b2711d232b98";
+				PROVISIONING_PROFILE = "43837c95-5e5e-45de-ac9a-5afd4e926a3a";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
@@ -556,7 +564,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.aet.mastersudku;
-				PROVISIONING_PROFILE = "bae9fccf-9f64-4306-9dfb-b2711d232b98";
+				PROVISIONING_PROFILE = "43837c95-5e5e-45de-ac9a-5afd4e926a3a";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
