@@ -7,7 +7,7 @@ protocol AudioRecordingProtocol: AnyObject {
     var isRecording: Bool { get }
     var currentAmplitude: Float { get }
     var durationSeconds: Double { get }
-    func startRecording(songID: UUID) throws -> URL
+    func startRecording(songID: UUID) throws -> (absoluteURL: URL, relativePath: String)
     func stopRecording() -> Double
 }
 
@@ -34,12 +34,15 @@ final class AudioRecordingService: NSObject, ObservableObject, AudioRecordingPro
         print("[SingCoach] AudioSession configured: playAndRecord")
     }
 
-    func startRecording(songID: UUID) throws -> URL {
+    /// Returns the *relative* path stored in SwiftData (e.g. "Lessons/<songID>/lesson_<uuid>.m4a").
+    /// Lesson 32: never store absolute paths — container UUID changes on reinstall.
+    func startRecording(songID: UUID) throws -> (absoluteURL: URL, relativePath: String) {
         try setupAudioSession()
 
         let lessonsDir = try lessonsDirectory(songID: songID)
         let fileName = "lesson_\(UUID().uuidString).m4a"
         let fileURL = lessonsDir.appendingPathComponent(fileName)
+        let relativePath = "Lessons/\(songID.uuidString)/\(fileName)"
 
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
@@ -64,8 +67,8 @@ final class AudioRecordingService: NSObject, ObservableObject, AudioRecordingPro
             }
         }
 
-        print("[SingCoach] Recording started: \(fileURL.lastPathComponent)")
-        return fileURL
+        print("[SingCoach] Recording started: \(relativePath)")
+        return (fileURL, relativePath)
     }
 
     func stopRecording() -> Double {

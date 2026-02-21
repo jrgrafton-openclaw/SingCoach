@@ -37,44 +37,58 @@ struct ContentView: View {
 }
 
 // MARK: - Global Recording Banner
+// Shown when user navigates away while recording. Color-coded by type.
+// Stop is handled by the FAB on SongDetailView — banner is informational only.
 
 struct GlobalRecordingBanner: View {
     @ObservedObject var recordingVM: RecordingViewModel
 
+    private var isPerformance: Bool { recordingVM.currentRecordingType == "performance" }
+    private var accentColor: Color { isPerformance ? Color(hex: "#8B5CF6") : Color(hex: "#F5A623") }
+    private var label: String { isPerformance ? "Performance" : "Lesson" }
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
+            // Pulsing dot
             Circle()
-                .fill(Color.red)
-                .frame(width: 8, height: 8)
-            Text("Recording...")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white)
-            Spacer()
+                .fill(accentColor)
+                .frame(width: 7, height: 7)
+
+            Text("● \(label)")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(accentColor)
+
             Text(formatDuration(recordingVM.recordingDuration))
-                .font(.system(size: 13, design: .monospaced))
-                .foregroundColor(.white.opacity(0.7))
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundColor(.white.opacity(0.55))
+
+            Spacer()
+
+            // Stop — only shown when navigated away (banner is visible)
             Button {
                 Task { await recordingVM.stopRecording() }
             } label: {
                 Text("Stop")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.red)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.red.opacity(0.2))
-                    .cornerRadius(8)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(accentColor)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(accentColor.opacity(0.15))
+                    .cornerRadius(6)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color(white: 0.1).opacity(0.95))
-        .cornerRadius(12)
-        .padding(.horizontal, 12)
-        .padding(.top, 50) // safe area
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(
+            Capsule()
+                .fill(Color(white: 0.12).opacity(0.96))
+                .overlay(Capsule().stroke(accentColor.opacity(0.25), lineWidth: 1))
+        )
+        .padding(.horizontal, 20)
+        .padding(.top, 52)
     }
 
-    func formatDuration(_ seconds: Double) -> String {
-        let total = Int(seconds)
-        return String(format: "%d:%02d", total / 60, total % 60)
+    private func formatDuration(_ s: Double) -> String {
+        String(format: "%d:%02d", Int(s) / 60, Int(s) % 60)
     }
 }

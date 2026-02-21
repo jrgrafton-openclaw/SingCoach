@@ -17,6 +17,7 @@ final class RecordingViewModel: ObservableObject {
     private let recommendationService = ExerciseRecommendationService()
 
     private var currentFileURL: URL?
+    private var currentRelativePath: String?
     private var song: Song?
     private var modelContext: ModelContext?
     private var cancellables = Set<AnyCancellable>()
@@ -41,27 +42,30 @@ final class RecordingViewModel: ObservableObject {
     func startRecording(recordingType: String = "lesson") {
         guard let song else { return }
         do {
-            let url = try recorder.startRecording(songID: song.id)
-            currentFileURL = url
+            let result = try recorder.startRecording(songID: song.id)
+            currentFileURL = result.absoluteURL
+            currentRelativePath = result.relativePath
             currentRecordingType = recordingType
             isRecording = true
-            print("[SingCoach] RecordingVM: started recording for song \(song.title), type=\(recordingType)")
+            print("[SingCoach] RecordingVM: started recording for song \(song.title), type=\(recordingType), path=\(result.relativePath)")
         } catch {
             print("[SingCoach] Failed to start recording: \(error)")
         }
     }
 
-    private var currentRecordingType: String = "lesson"
+    private(set) var currentRecordingType: String = "lesson"
 
     func stopRecording() async {
         guard let song, let modelContext, let fileURL = currentFileURL else { return }
+        // Lesson 32: store relative path so recordings survive reinstall
+        let storedPath = currentRelativePath ?? fileURL.absoluteString
 
         let duration = recorder.stopRecording()
         isRecording = false
 
         let lesson = Lesson(
             songID: song.id,
-            audioFileURL: fileURL.absoluteString,
+            audioFileURL: storedPath,
             durationSeconds: duration,
             transcriptionStatus: TranscriptionStatus.pending.rawValue,
             recordingType: currentRecordingType

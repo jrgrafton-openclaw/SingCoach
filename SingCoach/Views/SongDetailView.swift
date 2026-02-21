@@ -46,78 +46,54 @@ struct SongDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     let song: Song
-    // Bug 6 fix: use shared RecordingViewModel from environment
     @EnvironmentObject private var recordingVM: RecordingViewModel
     @State private var selectedTab = 0
     @State private var showDeleteConfirm = false
     @State private var showFindBackingTrack = false
-    // Bug 5 fix: inline recorder state
-    @State private var showInlineRecorder = false
-    @State private var selectedRecordingType: RecordingType = .lesson
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottomTrailing) {
             SingCoachTheme.background.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
-                    // Header — Bug 4 fix: pass recordingVM so button reflects recording state
                     SongHeaderView(
                         song: song,
-                        onRecord: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                showInlineRecorder = true
-                            }
-                        },
-                        showFindBackingTrack: $showFindBackingTrack,
-                        recordingVM: recordingVM
+                        showFindBackingTrack: $showFindBackingTrack
                     )
 
-                    // Bug 5 fix: inline recorder panel (replaces sheet)
-                    if showInlineRecorder {
-                        InlineRecorderView(
-                            song: song,
-                            recordingVM: recordingVM,
-                            selectedType: $selectedRecordingType,
-                            onClose: {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    showInlineRecorder = false
-                                }
-                            }
-                        )
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                    }
-
-                    // Tab selector
                     SectionTabBar(selectedTab: $selectedTab, tabs: ["Lyrics", "Lessons", "Exercises"])
                         .padding(.top, 16)
 
-                    // Content
                     switch selectedTab {
                     case 0:
                         LyricsView(song: song)
                             .padding(.top, 8)
+                            .padding(.bottom, 100) // FAB clearance
                     case 1:
                         LessonsSection(song: song, recordingVM: recordingVM)
                             .padding(.top, 8)
+                            .padding(.bottom, 100)
                     case 2:
                         ExercisesSection(song: song)
                             .padding(.top, 8)
+                            .padding(.bottom, 100)
                     default:
                         EmptyView()
                     }
                 }
             }
+
+            // FAB — tap = Lesson, long-press = Performance
+            RecordFAB(recordingVM: recordingVM)
+                .padding(.trailing, 20)
+                .padding(.bottom, 24)
         }
         .navigationTitle(song.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showDeleteConfirm = true
-                } label: {
+                Button { showDeleteConfirm = true } label: {
                     Image(systemName: "trash")
                         .foregroundColor(SingCoachTheme.destructive)
                 }
@@ -135,7 +111,6 @@ struct SongDetailView: View {
         .onAppear {
             recordingVM.configure(song: song, modelContext: modelContext)
         }
-        // Bug 5 fix: removed .sheet(isPresented: $recordingVM.showRecordingSheet)
         .sheet(isPresented: $showFindBackingTrack) {
             FindBackingTrackSheet(song: song)
         }
@@ -143,193 +118,226 @@ struct SongDetailView: View {
 
     func deleteSong(_ song: Song) {
         for lesson in song.lessons {
-            if let url = URL(string: lesson.audioFileURL) {
-                try? FileManager.default.removeItem(at: url)
-            }
+            let url = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+            try? FileManager.default.removeItem(at: url)
         }
         modelContext.delete(song)
         try? modelContext.save()
     }
 }
 
-// MARK: - Inline Recorder View (Bug 5)
+// MARK: - Record FAB
+// Tap = Lesson (gold). Long-press = Performance (purple).
+// Single stop tap ends the recording — no hunting for a hidden button.
 
-struct InlineRecorderView: View {
-    let song: Song
+private let kFABHintShownKey = "singcoach_fab_hint_shown"
+
+struct RecordFAB: View {
     @ObservedObject var recordingVM: RecordingViewModel
-    @Binding var selectedType: RecordingType
-    let onClose: () -> Void
 
-    // Local timer using view-side pattern (per lessons-learned lesson 13)
-    @State private var elapsedSeconds: Double = 0
-    @State private var timerCancellable: AnyCancellable? = nil
-    @State private var buttonBreathScale: CGFloat = 1.0
+    // Long-press gesture state
+    @State private var isLongPressing = false
+    @State private var longPressProgress: CGFloat = 0   // 0 → 1 during hold
+    @State private var longPressTimer: Timer?
+    private let longPressThreshold: CGFloat = 0.4       // seconds to trigger performance
+
+    // FAB animation
+    @State private var fabScale: CGFloat = 1.0
+    @State private var breathScale: CGFloat = 1.0
+
+    // One-time discoverability hint
+    @State private var showHint = !UserDefaults.standard.bool(forKey: kFABHintShownKey)
+    @State private var hintOpacity: Double = 0
+
+    // Colours
+    private let lessonColor  = Color(hex: "#F5A623")   // warm gold
+    private let performColor = Color(hex: "#8B5CF6")   // purple
+
+    private var isRecording: Bool { recordingVM.isRecording }
+    private var isPerf: Bool { recordingVM.currentRecordingType == "performance" }
+    private var activeColor: Color { isPerf ? performColor : lessonColor }
 
     var body: some View {
-        VStack(spacing: 16) {
-            if !recordingVM.isRecording {
-                // Segmented picker for recording type
-                Picker("Recording Type", selection: $selectedType) {
-                    Text("🎓 Lesson").tag(RecordingType.lesson)
-                    Text("🎤 Performance").tag(RecordingType.performance)
+        ZStack(alignment: .trailing) {
+            // Hint label — fades in once, disappears after 3s
+            if showHint {
+                Text("Hold for Performance")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color(white: 0.18).opacity(0.92))
+                    .cornerRadius(8)
+                    .opacity(hintOpacity)
+                    .offset(x: -72)
+            }
+
+            // Long-press arc progress ring
+            ZStack {
+                if isLongPressing && !isRecording {
+                    Circle()
+                        .trim(from: 0, to: longPressProgress)
+                        .stroke(performColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .frame(width: 68, height: 68)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 0.02), value: longPressProgress)
                 }
-                .pickerStyle(.segmented)
 
-                Text(selectedType == .performance
-                     ? "Performances are saved but not transcribed"
-                     : "Lesson recordings are transcribed and used to recommend exercises")
-                    .font(.system(size: 12))
-                    .foregroundColor(SingCoachTheme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .animation(.easeInOut(duration: 0.2), value: selectedType)
-            }
-
-            if recordingVM.isRecording {
-                // Waveform
-                WaveformView(samples: recordingVM.waveformSamples)
-                    .frame(height: 50)
-
-                // Timer
-                Text(formatDuration(elapsedSeconds))
-                    .font(.system(size: 28, weight: .light, design: .monospaced))
-                    .foregroundColor(SingCoachTheme.textPrimary)
-                    .contentTransition(.numericText())
-            }
-
-            // Record / Stop button
-            HStack(spacing: 16) {
+                // FAB — DragGesture(minimumDistance:0) gives us both press-start and release
                 ZStack {
                     Circle()
-                        .stroke(
-                            recordingVM.isRecording
-                                ? SingCoachTheme.destructive.opacity(0.5)
-                                : SingCoachTheme.accent.opacity(0.3),
-                            lineWidth: 2
-                        )
-                        .frame(width: 72, height: 72)
+                        .fill(fabFill)
+                        .frame(width: 60, height: 60)
+                        .shadow(color: (isRecording ? activeColor : lessonColor).opacity(0.4),
+                                radius: isRecording ? 12 : 6, y: 3)
+                        .scaleEffect(fabScale * (isRecording ? breathScale : 1.0))
 
-                    Button {
-                        if recordingVM.isRecording {
-                            stopRecordingAndTimer()
-                        } else {
-                            startRecordingAndTimer()
-                        }
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(recordingVM.isRecording
-                                      ? AnyShapeStyle(SingCoachTheme.destructive)
-                                      : AnyShapeStyle(SingCoachTheme.primaryGradient))
-                                .frame(width: 56, height: 56)
-                                .scaleEffect(recordingVM.isRecording ? buttonBreathScale : 1.0)
-
-                            if recordingVM.isRecording {
-                                RoundedRectangle(cornerRadius: 5)
-                                    .fill(Color.white)
-                                    .frame(width: 22, height: 22)
-                            } else {
-                                Image(systemName: "mic.fill")
-                                    .font(.system(size: 22))
-                                    .foregroundColor(SingCoachTheme.accent)
+                    if isRecording {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.white)
+                            .frame(width: 20, height: 20)
+                    } else if isLongPressing {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(performColor)
+                    } else {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(.black)
+                    }
+                }
+                .contentShape(Circle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            if !isRecording && !isLongPressing {
+                                beginLongPress()
                             }
                         }
-                    }
-                }
-                .onChange(of: recordingVM.isRecording) { _, isRecording in
-                    if isRecording {
-                        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                            buttonBreathScale = 1.03
+                        .onEnded { _ in
+                            if isRecording {
+                                stopRecording()
+                            } else if isLongPressing {
+                                // Released before threshold → tap = Lesson
+                                let wasQuickTap = longPressProgress < 1.0
+                                cancelLongPress()
+                                if wasQuickTap {
+                                    startRecording(type: "lesson")
+                                }
+                                // If progress == 1, performance already started in timer
+                            }
                         }
-                    } else {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            buttonBreathScale = 1.0
-                        }
-                    }
-                }
-
-                if !recordingVM.isRecording {
-                    Text(selectedType == .performance ? "Tap to record performance" : "Tap to record lesson")
-                        .font(.system(size: 14))
-                        .foregroundColor(SingCoachTheme.textSecondary)
-                }
-
-                Spacer()
-
-                if !recordingVM.isRecording {
-                    Button {
-                        onClose()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(SingCoachTheme.textSecondary)
-                    }
-                }
+                )
             }
-
-            if recordingVM.transcriptionStatus == .processing {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Transcribing...")
-                        .font(.system(size: 14))
-                        .foregroundColor(SingCoachTheme.textSecondary)
+        }
+        .onAppear {
+            guard showHint else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                withAnimation(.easeIn(duration: 0.4)) { hintOpacity = 1 }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                withAnimation(.easeOut(duration: 0.5)) { hintOpacity = 0 }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showHint = false
+                    UserDefaults.standard.set(true, forKey: kFABHintShownKey)
                 }
             }
         }
-        .padding(16)
-        .background(SingCoachTheme.surface)
-        .cornerRadius(16)
-    }
-
-    private func startRecordingAndTimer() {
-        elapsedSeconds = 0
-        recordingVM.startRecording(recordingType: selectedType.rawValue.lowercased())
-        timerCancellable = Timer.publish(every: 0.5, on: .main, in: .common)
-            .autoconnect()
-            .sink { _ in
-                if recordingVM.isRecording {
-                    elapsedSeconds += 0.5
+        .onChange(of: isRecording) { _, recording in
+            if recording {
+                // Breathing pulse while recording
+                withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                    breathScale = 1.06
+                }
+            } else {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    breathScale = 1.0
                 }
             }
-    }
-
-    private func stopRecordingAndTimer() {
-        timerCancellable?.cancel()
-        timerCancellable = nil
-        Task {
-            await recordingVM.stopRecording()
-            // Auto-close after stopping
-            onClose()
         }
     }
 
-    func formatDuration(_ seconds: Double) -> String {
-        let total = Int(seconds)
-        let h = total / 3600
-        let m = (total % 3600) / 60
-        let s = total % 60
-        if h > 0 {
-            return String(format: "%d:%02d:%02d", h, m, s)
+    // MARK: - Fill colour
+
+    private var fabFill: AnyShapeStyle {
+        if isRecording {
+            return AnyShapeStyle(activeColor)
         }
-        return String(format: "%d:%02d", m, s)
+        if isLongPressing {
+            // Smoothly interpolate gold → purple during hold
+            let t = Double(longPressProgress)
+            return AnyShapeStyle(Color(
+                red:   lerp(0.961, 0.545, t),
+                green: lerp(0.651, 0.361, t),
+                blue:  lerp(0.137, 0.965, t)
+            ))
+        }
+        return AnyShapeStyle(lessonColor)
+    }
+
+    private func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double {
+        a + (b - a) * t
+    }
+
+    // MARK: - Gesture handling
+
+    private func beginLongPress() {
+        isLongPressing = true
+        longPressProgress = 0
+        let step: CGFloat = 0.02 / longPressThreshold
+        longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [self] _ in
+            Task { @MainActor [self] in
+                longPressProgress += step
+                if longPressProgress >= 1.0 {
+                    longPressTimer?.invalidate()
+                    longPressTimer = nil
+                    // Threshold reached — haptic + start performance
+                    let gen = UIImpactFeedbackGenerator(style: .medium)
+                    gen.impactOccurred()
+                    isLongPressing = false
+                    longPressProgress = 0
+                    startRecording(type: "performance")
+                }
+            }
+        }
+    }
+
+    private func cancelLongPress() {
+        longPressTimer?.invalidate()
+        longPressTimer = nil
+        isLongPressing = false
+        longPressProgress = 0
+    }
+
+    private func startRecording(type: String) {
+        let gen = UIImpactFeedbackGenerator(style: .light)
+        gen.impactOccurred()
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) { fabScale = 0.88 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { fabScale = 1.0 }
+        }
+        recordingVM.startRecording(recordingType: type)
+    }
+
+    private func stopRecording() {
+        cancelLongPress()
+        let gen = UIImpactFeedbackGenerator(style: .light)
+        gen.impactOccurred()
+        Task { await recordingVM.stopRecording() }
     }
 }
 
-// MARK: - Song Header (Bug 4: reflects recording state; Bug 7: cached image)
+// MARK: - Song Header (artwork + title + karaoke only; record via FAB)
 
 struct SongHeaderView: View {
     let song: Song
-    let onRecord: () -> Void
     @Binding var showFindBackingTrack: Bool
-    // Bug 4 fix: observe recordingVM so button updates during recording
-    @ObservedObject var recordingVM: RecordingViewModel
     @ObservedObject private var musicKit = MusicKitService.shared
-    // Bug 7 fix: cached image loader
     @StateObject private var imageLoader = ImageLoader()
 
     var body: some View {
         VStack(spacing: 14) {
-            // Artwork — Bug 7 fix: use ImageLoader with URLCache
+            // Artwork
             Group {
                 if let img = imageLoader.image {
                     Image(uiImage: img)
@@ -357,27 +365,6 @@ struct SongHeaderView: View {
                 Text(song.artist)
                     .font(.system(size: 15))
                     .foregroundColor(SingCoachTheme.textSecondary)
-            }
-
-            // Bug 4 fix: Record Lesson button reflects recording state
-            Button(action: onRecord) {
-                HStack {
-                    if recordingVM.isRecording {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 8, height: 8)
-                        Text("Recording...")
-                    } else {
-                        Image(systemName: "mic.fill")
-                        Text("Record Lesson")
-                    }
-                }
-                .font(.system(size: 15, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(recordingVM.isRecording ? Color.red.opacity(0.2) : SingCoachTheme.accent)
-                .foregroundColor(recordingVM.isRecording ? Color.red : .black)
-                .cornerRadius(14)
             }
 
             // Karaoke player / link button
@@ -726,16 +713,15 @@ struct LessonRowView: View {
                     if player.isPlaying {
                         player.pause()
                     } else {
-                        if let url = URL(string: lesson.audioFileURL) {
-                            // Bug 8 fix: handle load errors gracefully
-                            do {
-                                try player.load(url: url)
-                                showLoadError = false
-                                player.play()
-                            } catch {
-                                showLoadError = true
-                                print("[SingCoach] LessonRowView: failed to load audio: \(error)")
-                            }
+                        // Lesson 32: resolve relative or legacy absolute path
+                        let url = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+                        do {
+                            try player.load(url: url)
+                            showLoadError = false
+                            player.play()
+                        } catch {
+                            showLoadError = true
+                            print("[SingCoach] LessonRowView: failed to load audio: \(error)")
                         }
                     }
                 } label: {
@@ -879,20 +865,19 @@ struct LessonDetailSheet: View {
                                     if player.isPlaying {
                                         player.pause()
                                     } else {
-                                        if let url = URL(string: lesson.audioFileURL) {
-                                            if player.duration == 0 {
-                                                // Bug 8 fix: handle load errors gracefully
-                                                do {
-                                                    try player.load(url: url)
-                                                    showLoadError = false
-                                                } catch {
-                                                    showLoadError = true
-                                                    print("[SingCoach] LessonDetailSheet: failed to load audio: \(error)")
-                                                    return
-                                                }
+                                        if player.duration == 0 {
+                                            // Lesson 32: resolve relative or legacy absolute path
+                                            let url = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+                                            do {
+                                                try player.load(url: url)
+                                                showLoadError = false
+                                            } catch {
+                                                showLoadError = true
+                                                print("[SingCoach] LessonDetailSheet: failed to load audio: \(error)")
+                                                return
                                             }
-                                            player.play()
                                         }
+                                        player.play()
                                     }
                                 } label: {
                                     Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
@@ -977,14 +962,13 @@ struct LessonDetailSheet: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
-            if let url = URL(string: lesson.audioFileURL) {
-                // Bug 8 fix: handle load errors gracefully on appear
-                do {
-                    try player.load(url: url)
-                } catch {
-                    showLoadError = true
-                    print("[SingCoach] LessonDetailSheet onAppear: failed to load: \(error)")
-                }
+            // Lesson 32: resolve relative or legacy absolute path
+            let url = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+            do {
+                try player.load(url: url)
+            } catch {
+                showLoadError = true
+                print("[SingCoach] LessonDetailSheet onAppear: failed to load: \(error)")
             }
         }
     }

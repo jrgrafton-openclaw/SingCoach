@@ -21,6 +21,24 @@ enum AudioPlaybackError: LocalizedError {
     var errorDescription: String? { "Audio file not found." }
 }
 
+// MARK: - Path resolver (Lesson 32: relative paths survive reinstall)
+enum AudioPathResolver {
+    static func resolvedURL(_ stored: String) -> URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        // Legacy absolute paths (file:// or /var/...) — extract relative "Lessons/..." portion
+        if stored.hasPrefix("file://") || stored.hasPrefix("/") {
+            if let range = stored.range(of: "Lessons/") {
+                let relative = String(stored[range.lowerBound...])
+                return docs.appendingPathComponent(relative)
+            }
+            // Fallback: try as-is
+            return URL(string: stored) ?? docs
+        }
+        // Modern relative path
+        return docs.appendingPathComponent(stored)
+    }
+}
+
 @MainActor
 final class AudioPlaybackService: NSObject, ObservableObject, AudioPlayerProtocol {
     @Published var isPlaying = false
