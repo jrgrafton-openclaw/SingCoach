@@ -108,9 +108,9 @@ final class RecordingViewModel: ObservableObject {
             let wordCount = transcript.split(separator: " ").count
             AnalyticsService.shared.lessonTranscribed(success: true, wordCount: wordCount)
 
-            // Recommend exercises
+            // Recommend exercises — async path tries Apple Intelligence first, falls back to NLEmbedding
             let allExercises = (try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? []
-            let recommended = recommendationService.recommendExercises(
+            let recommended = await recommendationService.recommendAsync(
                 transcript: transcript,
                 song: song,
                 allExercises: allExercises

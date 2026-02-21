@@ -52,13 +52,15 @@ struct SongDetailView: View {
     @State private var showFindBackingTrack = false
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack {
             SingCoachTheme.background.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
+                    // Header contains artwork, title, karaoke player, and record button
                     SongHeaderView(
                         song: song,
+                        recordingVM: recordingVM,
                         showFindBackingTrack: $showFindBackingTrack
                     )
 
@@ -67,27 +69,16 @@ struct SongDetailView: View {
 
                     switch selectedTab {
                     case 0:
-                        LyricsView(song: song)
-                            .padding(.top, 8)
-                            .padding(.bottom, 100) // FAB clearance
+                        LyricsView(song: song).padding(.top, 8)
                     case 1:
-                        LessonsSection(song: song, recordingVM: recordingVM)
-                            .padding(.top, 8)
-                            .padding(.bottom, 100)
+                        LessonsSection(song: song, recordingVM: recordingVM).padding(.top, 8)
                     case 2:
-                        ExercisesSection(song: song)
-                            .padding(.top, 8)
-                            .padding(.bottom, 100)
+                        ExercisesSection(song: song).padding(.top, 8)
                     default:
                         EmptyView()
                     }
                 }
             }
-
-            // FAB — tap = Lesson, long-press = Performance
-            RecordFAB(recordingVM: recordingVM)
-                .padding(.trailing, 20)
-                .padding(.bottom, 24)
         }
         .navigationTitle(song.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -327,10 +318,183 @@ struct RecordFAB: View {
     }
 }
 
-// MARK: - Song Header (artwork + title + karaoke only; record via FAB)
+// MARK: - Header Record Button
+// Full-width button in the song header. Tap = Lesson, long-press = Performance.
+// Same haptic + color-shift UX as the old FAB, but contextually placed.
+
+struct HeaderRecordButton: View {
+    @ObservedObject var recordingVM: RecordingViewModel
+
+    @State private var isLongPressing = false
+    @State private var longPressProgress: CGFloat = 0
+    @State private var longPressTimer: Timer?
+    private let longPressThreshold: CGFloat = 0.4
+
+    @State private var buttonScale: CGFloat = 1.0
+    @State private var breathScale: CGFloat = 1.0
+
+    // One-time hint
+    @State private var showHint = !UserDefaults.standard.bool(forKey: kFABHintShownKey)
+    @State private var hintVisible: Bool = false
+
+    private let lessonColor  = Color(hex: "#F5A623")
+    private let performColor = Color(hex: "#8B5CF6")
+
+    private var isRecording: Bool { recordingVM.isRecording }
+    private var isPerf: Bool { recordingVM.currentRecordingType == "performance" }
+    private var activeColor: Color { isPerf ? performColor : lessonColor }
+
+    private var fillColor: Color {
+        if isRecording { return activeColor }
+        if isLongPressing {
+            let t = Double(longPressProgress)
+            return Color(red: lerp(0.961, 0.545, t), green: lerp(0.651, 0.361, t), blue: lerp(0.137, 0.965, t))
+        }
+        return lessonColor
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                // Long-press progress bar under the button
+                if isLongPressing && !isRecording {
+                    GeometryReader { geo in
+                        Rectangle()
+                            .fill(performColor.opacity(0.5))
+                            .frame(width: geo.size.width * longPressProgress)
+                            .animation(.linear(duration: 0.02), value: longPressProgress)
+                    }
+                    .frame(height: 2)
+                    .cornerRadius(1)
+                    .offset(y: 22)
+                }
+
+                // Button face
+                HStack(spacing: 8) {
+                    if isRecording {
+                        // Pulsing stop indicator
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color.white)
+                            .frame(width: 14, height: 14)
+                            .scaleEffect(breathScale)
+                        Text(isPerf ? "Stop Performance" : "Stop Lesson")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                    } else if isLongPressing {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                        Text("Hold for Performance…")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                    } else {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.black)
+                        Text("Record Lesson")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.black)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(fillColor)
+                .cornerRadius(14)
+                .scaleEffect(buttonScale)
+                .shadow(color: isRecording ? activeColor.opacity(0.4) : .clear, radius: 8, y: 3)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if !isRecording && !isLongPressing { beginLongPress() }
+                    }
+                    .onEnded { _ in
+                        if isRecording {
+                            stopRecording()
+                        } else if isLongPressing {
+                            let wasQuickTap = longPressProgress < 1.0
+                            cancelLongPress()
+                            if wasQuickTap { startRecording(type: "lesson") }
+                        }
+                    }
+            )
+
+            // One-time hint
+            if showHint && hintVisible {
+                Text("Hold to record as Performance")
+                    .font(.system(size: 11))
+                    .foregroundColor(SingCoachTheme.textSecondary)
+                    .transition(.opacity)
+            }
+        }
+        .onAppear {
+            guard showHint else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                withAnimation { hintVisible = true }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                withAnimation { hintVisible = false }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    showHint = false
+                    UserDefaults.standard.set(true, forKey: kFABHintShownKey)
+                }
+            }
+        }
+        .onChange(of: isRecording) { _, recording in
+            if recording {
+                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { breathScale = 1.05 }
+            } else {
+                withAnimation(.spring(response: 0.3)) { breathScale = 1.0 }
+            }
+        }
+    }
+
+    private func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double { a + (b - a) * t }
+
+    private func beginLongPress() {
+        isLongPressing = true
+        longPressProgress = 0
+        let step: CGFloat = 0.02 / longPressThreshold
+        longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [self] _ in
+            Task { @MainActor [self] in
+                longPressProgress += step
+                if longPressProgress >= 1.0 {
+                    longPressTimer?.invalidate(); longPressTimer = nil
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    isLongPressing = false; longPressProgress = 0
+                    startRecording(type: "performance")
+                }
+            }
+        }
+    }
+
+    private func cancelLongPress() {
+        longPressTimer?.invalidate(); longPressTimer = nil
+        isLongPressing = false; longPressProgress = 0
+    }
+
+    private func startRecording(type: String) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) { buttonScale = 0.95 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(response: 0.3)) { buttonScale = 1.0 }
+        }
+        recordingVM.startRecording(recordingType: type)
+    }
+
+    private func stopRecording() {
+        cancelLongPress()
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Task { await recordingVM.stopRecording() }
+    }
+}
+
+// MARK: - Song Header (artwork + title + karaoke + inline record button)
 
 struct SongHeaderView: View {
     let song: Song
+    @ObservedObject var recordingVM: RecordingViewModel
     @Binding var showFindBackingTrack: Bool
     @ObservedObject private var musicKit = MusicKitService.shared
     @StateObject private var imageLoader = ImageLoader()
@@ -369,9 +533,13 @@ struct SongHeaderView: View {
 
             // Karaoke player / link button
             karaokeSection
+
+            // Record button — same tap/long-press UX as FAB, but inline in header
+            HeaderRecordButton(recordingVM: recordingVM)
         }
         .padding(.top, 20)
         .padding(.horizontal, 20)
+        .padding(.bottom, 8)
     }
 
     // MARK: - Karaoke section
@@ -739,7 +907,7 @@ struct LessonsSection: View {
                 lesson.transcript = transcript
                 lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
                 let recommender = ExerciseRecommendationService()
-                let recommended = recommender.recommendExercises(
+                let recommended = await recommender.recommendAsync(
                     transcript: transcript, song: song, allExercises: allExercises)
                 lesson.recommendedExercises = recommended
                 print("[SingCoach] Re-transcribe done: \(transcript.split(separator: " ").count) words, \(recommended.count) exercises")
