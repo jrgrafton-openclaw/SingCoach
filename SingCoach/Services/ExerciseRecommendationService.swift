@@ -4,7 +4,10 @@ import SwiftData
 @MainActor
 final class ExerciseRecommendationService: ObservableObject {
 
-    // Keyword-based fallback scoring
+    // Recommendation strategy:
+    // 1. Keyword match transcript words against exercise keywords (works if transcript has coaching terms)
+    // 2. Fallback: singing transcripts contain lyrics, not coaching words — always recommend
+    //    one exercise per category (covering all bases) so users always get something useful.
     func recommendExercises(
         transcript: String,
         song: Song,
@@ -23,12 +26,25 @@ final class ExerciseRecommendationService: ObservableObject {
             let overlap = keywordSet.intersection(transcriptWords).count
             return overlap > 0 ? (exercise, overlap) : nil
         }
-
         scored.sort { $0.score > $1.score }
-        let recommended = Array(scored.prefix(count).map { $0.exercise })
+        var recommended = Array(scored.prefix(count).map { $0.exercise })
 
-        print("[SingCoach] Exercise recommendation via keyword: \(recommended.count) exercises")
-        AnalyticsService.shared.exerciseRecommended(count: recommended.count, source: "keyword_fallback")
+        // Fallback: singing transcripts contain lyrics not coaching terms — pick one per
+        // category so the user always gets actionable exercise recommendations.
+        if recommended.count < count {
+            let categories = ["warmup", "breath", "pitch", "resonance", "range"]
+            for category in categories where recommended.count < count {
+                let alreadyIDs = Set(recommended.map { $0.id })
+            if let ex = allExercises.first(where: {
+                    $0.category == category && !alreadyIDs.contains($0.id)
+                }) {
+                    recommended.append(ex)
+                }
+            }
+        }
+
+        print("[SingCoach] Exercise recommendation: \(recommended.count) exercises (keyword matches: \(scored.count))")
+        AnalyticsService.shared.exerciseRecommended(count: recommended.count, source: scored.isEmpty ? "category_fallback" : "keyword_match")
 
         return recommended
     }

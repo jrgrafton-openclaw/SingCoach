@@ -83,6 +83,16 @@ final class RecordingViewModel: ObservableObject {
             return
         }
 
+        // Ensure speech permission before transcribing (silent failure if not granted)
+        let permissionGranted = await transcriptionService.requestPermission()
+        guard permissionGranted else {
+            lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
+            transcriptionStatus = .failed
+            print("[SingCoach] Transcription skipped — speech recognition permission denied")
+            try? modelContext.save()
+            return
+        }
+
         // Start transcription
         lesson.transcriptionStatus = TranscriptionStatus.processing.rawValue
         try? modelContext.save()

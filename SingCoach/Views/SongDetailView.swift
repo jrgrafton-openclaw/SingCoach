@@ -430,6 +430,8 @@ struct KaraokePlayerCard: View {
     @ObservedObject private var musicKit = MusicKitService.shared
     @State private var localSeekFraction: Double = 0
     @State private var isDragging = false
+    // Loading state: true while MusicKit fetches + buffers before first play
+    @State private var isLoading = false
 
     private var isThisTrack: Bool { musicKit.currentTrackID == trackID }
     private var fraction: Double {
@@ -440,7 +442,6 @@ struct KaraokePlayerCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Track name
             if let title = song.karaokeTrackTitle {
                 Text(title)
                     .font(.system(size: 12, weight: .medium))
@@ -449,7 +450,6 @@ struct KaraokePlayerCard: View {
                     .padding(.bottom, 10)
             }
 
-            // Seek bar + timestamps
             VStack(spacing: 4) {
                 Slider(value: Binding(
                     get: { fraction },
@@ -461,6 +461,7 @@ struct KaraokePlayerCard: View {
                     }
                 })
                 .tint(.white)
+                .disabled(isLoading)
 
                 HStack {
                     Text(formatTime(isDragging ? localSeekFraction * musicKit.trackDuration : (isThisTrack ? musicKit.playbackTime : 0)))
@@ -472,42 +473,58 @@ struct KaraokePlayerCard: View {
             }
             .padding(.bottom, 14)
 
-            // Controls row
             ZStack {
                 HStack(spacing: 0) {
                     Spacer()
                     Button { musicKit.skipBackward() } label: {
                         Image(systemName: "gobackward.15")
                             .font(.system(size: 20, weight: .regular))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(.white.opacity(isLoading ? 0.3 : 0.8))
                             .frame(width: 52, height: 52)
                     }
+                    .disabled(isLoading)
                     Spacer()
+
+                    // Play/pause button — shows spinner while loading
                     Button {
-                        Task {
-                            let musicID = MusicItemID(rawValue: trackID)
-                            let req = MusicCatalogResourceRequest<MusicKit.Song>(matching: \.id, equalTo: musicID)
-                            if let result = try? await req.response().items.first {
-                                try? await musicKit.togglePlayback(song: result)
+                        handlePlayTap()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 56, height: 56)
+                                .shadow(color: .black.opacity(0.3), radius: 5, y: 2)
+
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                    .scaleEffect(0.9)
+                            } else {
+                                Image(systemName: (musicKit.isPlaying && isThisTrack) ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundColor(.black)
                             }
                         }
-                    } label: {
-                        Image(systemName: (musicKit.isPlaying && isThisTrack) ? "pause.fill" : "play.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(.black)
-                            .frame(width: 56, height: 56)
-                            .background(.white)
-                            .clipShape(Circle())
-                            .shadow(color: .black.opacity(0.3), radius: 5, y: 2)
                     }
+                    .disabled(isLoading)
+
                     Spacer()
                     Button { musicKit.skipForward() } label: {
                         Image(systemName: "goforward.15")
                             .font(.system(size: 20, weight: .regular))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(.white.opacity(isLoading ? 0.3 : 0.8))
                             .frame(width: 52, height: 52)
                     }
+                    .disabled(isLoading)
                     Spacer()
+                }
+                // Clear loading once MusicKit reports it's actually playing
+                .onChange(of: musicKit.isPlaying) { _, playing in
+                    if playing && isThisTrack { isLoading = false }
+                }
+                // Also clear if track changes away (error/cancel)
+                .onChange(of: musicKit.currentTrackID) { _, _ in
+                    isLoading = false
                 }
 
                 HStack {
@@ -532,6 +549,31 @@ struct KaraokePlayerCard: View {
                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(Color.white.opacity(0.07), lineWidth: 1))
         )
+    }
+
+    private func handlePlayTap() {
+        if musicKit.isPlaying && isThisTrack {
+            // Already playing this track — just pause, no load needed
+            musicKit.pause()
+        } else if !isThisTrack || (!musicKit.isPlaying && musicKit.currentTrackID == trackID) {
+            // Need to fetch + play — show loading immediately
+            isLoading = true
+            Task {
+                let musicID = MusicItemID(rawValue: trackID)
+                let req = MusicCatalogResourceRequest<MusicKit.Song>(matching: \.id, equalTo: musicID)
+                if let result = try? await req.response().items.first {
+                    do {
+                        try await musicKit.togglePlayback(song: result)
+                    } catch {
+                        isLoading = false
+                        print("[SingCoach] KaraokePlayerCard: playback error: \(error)")
+                    }
+                } else {
+                    isLoading = false
+                    print("[SingCoach] KaraokePlayerCard: track not found for ID \(trackID)")
+                }
+            }
+        }
     }
 
     private func formatTime(_ t: TimeInterval) -> String {
@@ -576,6 +618,7 @@ struct LessonsSection: View {
     let song: Song
     @ObservedObject var recordingVM: RecordingViewModel
     @Environment(\.modelContext) private var modelContext
+    @State private var retranscribingID: UUID? = nil
 
     var lessons: [Lesson] {
         song.lessons.filter { !$0.isPerformance }.sorted { $0.date > $1.date }
@@ -586,7 +629,7 @@ struct LessonsSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             if song.lessons.isEmpty {
                 EmptyStateView(
                     icon: "mic.slash",
@@ -600,18 +643,45 @@ struct LessonsSection: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(SingCoachTheme.accent)
                         .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
 
-                    ForEach(lessons) { lesson in
-                        LessonRowView(lesson: lesson)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    deleteLesson(lesson)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                    // List required for swipeActions to work (VStack/ScrollView doesn't support them)
+                    List {
+                        ForEach(lessons) { lesson in
+                            LessonRowView(lesson: lesson)
+                                .listRowBackground(SingCoachTheme.surface)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        deleteLesson(lesson)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
-                            }
-                            .padding(.horizontal, 16)
+                                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                    if !lesson.isPerformance && lesson.status != .processing {
+                                        Button {
+                                            retranscribe(lesson)
+                                        } label: {
+                                            Label("Retranscribe", systemImage: "waveform.badge.magnifyingglass")
+                                        }
+                                        .tint(SingCoachTheme.accent)
+                                    }
+                                }
+                                .overlay(alignment: .topTrailing) {
+                                    if retranscribingID == lesson.id {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                            .padding(8)
+                                    }
+                                }
+                        }
                     }
+                    .listStyle(.plain)
+                    .scrollDisabled(true)
+                    .frame(minHeight: CGFloat(lessons.count) * 90, maxHeight: CGFloat(lessons.count) * 160)
+                    .background(SingCoachTheme.background)
                 }
 
                 if !performances.isEmpty {
@@ -619,30 +689,67 @@ struct LessonsSection: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(Color(hex: "#8B5CF6"))
                         .padding(.horizontal, 16)
-                        .padding(.top, 8)
+                        .padding(.top, 16)
+                        .padding(.bottom, 8)
 
-                    ForEach(performances) { lesson in
-                        LessonRowView(lesson: lesson)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    deleteLesson(lesson)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                    List {
+                        ForEach(performances) { lesson in
+                            LessonRowView(lesson: lesson)
+                                .listRowBackground(SingCoachTheme.surface)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        deleteLesson(lesson)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
-                            }
-                            .padding(.horizontal, 16)
+                        }
                     }
+                    .listStyle(.plain)
+                    .scrollDisabled(true)
+                    .frame(minHeight: CGFloat(performances.count) * 90, maxHeight: CGFloat(performances.count) * 160)
+                    .background(SingCoachTheme.background)
                 }
             }
         }
     }
 
     func deleteLesson(_ lesson: Lesson) {
-        if let url = URL(string: lesson.audioFileURL) {
-            try? FileManager.default.removeItem(at: url)
-        }
+        let url = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+        try? FileManager.default.removeItem(at: url)
+        song.lessons.removeAll { $0.id == lesson.id }
         modelContext.delete(lesson)
         try? modelContext.save()
+    }
+
+    func retranscribe(_ lesson: Lesson) {
+        retranscribingID = lesson.id
+        let audioURL = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+        let allExercises = (try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? []
+        Task {
+            lesson.transcriptionStatus = TranscriptionStatus.processing.rawValue
+            try? modelContext.save()
+
+            let service = TranscriptionService()
+            let result = await service.transcribe(audioFileURL: audioURL)
+            switch result {
+            case .success(let transcript):
+                lesson.transcript = transcript
+                lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
+                let recommender = ExerciseRecommendationService()
+                let recommended = recommender.recommendExercises(
+                    transcript: transcript, song: song, allExercises: allExercises)
+                lesson.recommendedExercises = recommended
+                print("[SingCoach] Re-transcribe done: \(transcript.split(separator: " ").count) words, \(recommended.count) exercises")
+            case .failure(let error):
+                lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
+                print("[SingCoach] Re-transcribe failed: \(error)")
+            }
+            try? modelContext.save()
+            retranscribingID = nil
+        }
     }
 }
 
