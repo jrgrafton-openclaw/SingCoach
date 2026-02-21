@@ -5,6 +5,7 @@ struct SongsListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Song.createdAt, order: .reverse) private var songs: [Song]
     @StateObject private var viewModel = SongsViewModel()
+    @State private var selectedSong: Song? = nil
 
     var body: some View {
         NavigationStack {
@@ -18,17 +19,29 @@ struct SongsListView: View {
                         subtitle: "Add a song to start practising"
                     )
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(songs) { song in
-                                NavigationLink(destination: SongDetailView(song: song)) {
-                                    SongRowView(song: song)
+                    // Use List so swipeActions work reliably (NavigationLink inside LazyVStack
+                    // consumes the swipe gesture — List handles it natively)
+                    List {
+                        ForEach(songs) { song in
+                            SongRowView(song: song)
+                                .contentShape(Rectangle())
+                                .onTapGesture { selectedSong = song }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        deleteSong(song)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
-                                .buttonStyle(.plain)
-                            }
+                                .listRowBackground(SingCoachTheme.background)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .navigationDestination(item: $selectedSong) { song in
+                        SongDetailView(song: song)
                     }
                 }
             }
@@ -49,6 +62,16 @@ struct SongsListView: View {
         }
         .preferredColorScheme(.dark)
     }
+
+    func deleteSong(_ song: Song) {
+        for lesson in song.lessons {
+            if let url = URL(string: lesson.audioFileURL) {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+        modelContext.delete(song)
+        try? modelContext.save()
+    }
 }
 
 struct SongRowView: View {
@@ -56,13 +79,24 @@ struct SongRowView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(SingCoachTheme.primaryGradient)
-                    .frame(width: 52, height: 52)
-                Image(systemName: "music.note")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(SingCoachTheme.accent)
+            // Show artwork if available, placeholder otherwise
+            if let artworkURL = song.artworkURL, let url = URL(string: artworkURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 52, height: 52)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    case .failure, .empty:
+                        artworkPlaceholder
+                    @unknown default:
+                        artworkPlaceholder
+                    }
+                }
+            } else {
+                artworkPlaceholder
             }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -92,5 +126,16 @@ struct SongRowView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(SingCoachTheme.surface)
         )
+    }
+
+    var artworkPlaceholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(SingCoachTheme.primaryGradient)
+                .frame(width: 52, height: 52)
+            Image(systemName: "music.note")
+                .font(.system(size: 22, weight: .medium))
+                .foregroundColor(SingCoachTheme.accent)
+        }
     }
 }

@@ -37,25 +37,31 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
         print("[SingCoach] Transcription started: \(audioFileURL.lastPathComponent)")
 
         let request = SFSpeechURLRecognitionRequest(url: audioFileURL)
-        request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = false
+        request.addsPunctuation = true
         request.taskHint = .dictation
+        // Bug 1 fix: removed requiresOnDeviceRecognition = true (which limits to ~60s)
+        // Using network transcription for full-length recordings
 
-        do {
-            let transcript = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
-                recognizer.recognitionTask(with: request) { result, error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else if let result, result.isFinal {
-                        continuation.resume(returning: result.bestTranscription.formattedString)
+        return await withCheckedContinuation { continuation in
+            var didResume = false
+            recognizer.recognitionTask(with: request) { result, error in
+                if let result, result.isFinal {
+                    if !didResume {
+                        didResume = true
+                        let transcript = result.bestTranscription.formattedString
+                        print("[SingCoach] Transcription done: \(transcript.split(separator: " ").count) words")
+                        continuation.resume(returning: .success(transcript))
+                    }
+                }
+                if let error {
+                    if !didResume {
+                        didResume = true
+                        print("[SingCoach] Transcription failed: \(error)")
+                        continuation.resume(returning: .failure(error))
                     }
                 }
             }
-            print("[SingCoach] Transcription done: \(transcript.split(separator: " ").count) words")
-            return .success(transcript)
-        } catch {
-            print("[SingCoach] Transcription failed: \(error)")
-            return .failure(error)
         }
     }
 }

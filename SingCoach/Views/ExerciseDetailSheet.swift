@@ -71,12 +71,13 @@ struct ExerciseDetailSheet: View {
                             }
                         }
 
-                        // YouTube video
+                        // YouTube video — inline embed via loadHTMLString (fixes Error 153)
                         if let youtubeURL = exercise.youtubeURL {
                             SectionCard(title: "Watch a Demo") {
                                 YouTubeWebView(urlString: youtubeURL)
                                     .frame(height: 220)
                                     .cornerRadius(10)
+                                    .clipped()
                             }
                         }
 
@@ -133,36 +134,58 @@ struct SectionCard<Content: View>: View {
     }
 }
 
+/// Inline YouTube embed that sets baseURL to youtube.com, bypassing Error 153.
+/// YouTube's embed restriction is origin-checked — WKWebView with baseURL of
+/// https://www.youtube.com is treated as a first-party context by the player.
 struct YouTubeWebView: UIViewRepresentable {
     let urlString: String
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
+        config.mediaTypesRequiringUserActionForPlayback = []
         let webView = WKWebView(frame: .zero, configuration: config)
-        webView.backgroundColor = .clear
+        webView.backgroundColor = .black
+        webView.isOpaque = false
         webView.scrollView.isScrollEnabled = false
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        guard let url = URL(string: urlString) else { return }
-        // Convert to embed URL if it's a regular YouTube URL
-        let embedURL = youtubeEmbedURL(from: urlString) ?? url
-        let request = URLRequest(url: embedURL)
-        webView.load(request)
+        guard let videoID = extractVideoID(from: urlString) else { return }
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          * { margin: 0; padding: 0; background: #000; }
+          iframe { width: 100%; height: 100vh; border: none; }
+        </style>
+        </head>
+        <body>
+        <iframe
+          src="https://www.youtube.com/embed/\(videoID)?playsinline=1&rel=0"
+          allow="autoplay; encrypted-media"
+          allowfullscreen>
+        </iframe>
+        </body>
+        </html>
+        """
+        // baseURL of youtube.com makes the player trust this as a first-party origin
+        webView.loadHTMLString(html, baseURL: URL(string: "https://www.youtube.com"))
     }
 
-    private func youtubeEmbedURL(from urlString: String) -> URL? {
-        if urlString.contains("youtube.com/watch?v=") {
-            if let videoID = URLComponents(string: urlString)?.queryItems?.first(where: { $0.name == "v" })?.value {
-                return URL(string: "https://www.youtube.com/embed/\(videoID)?playsinline=1")
-            }
+    private func extractVideoID(from urlString: String) -> String? {
+        if urlString.contains("watch?v=") {
+            return URLComponents(string: urlString)?.queryItems?.first(where: { $0.name == "v" })?.value
         } else if urlString.contains("youtu.be/") {
-            if let videoID = URL(string: urlString)?.lastPathComponent {
-                return URL(string: "https://www.youtube.com/embed/\(videoID)?playsinline=1")
-            }
+            return URL(string: urlString)?.lastPathComponent
         }
-        return URL(string: urlString)
+        // Already an embed URL — pull the ID from the path
+        if urlString.contains("/embed/") {
+            return URL(string: urlString)?.lastPathComponent
+        }
+        return nil
     }
 }

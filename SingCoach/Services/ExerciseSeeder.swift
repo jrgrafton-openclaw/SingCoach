@@ -4,15 +4,35 @@ import SwiftUI
 
 @MainActor
 final class ExerciseSeeder: ObservableObject {
-    private let seededKey = "SingCoach.ExercisesSeeded.v1"
+    // Build 9: Key bumped to v3 — updated YouTube video IDs (Error 152 fix)
+    private let seededKey = "SingCoach.ExercisesSeeded.v3"
 
-    func seedIfNeeded() {
+    /// Call this AFTER the ModelContainer is fully ready, passing the context in.
+    func seedIfNeeded(context: ModelContext) {
         guard !UserDefaults.standard.bool(forKey: seededKey) else {
-            print("[SingCoach] Exercises already seeded, skipping")
+            print("[SingCoach] Exercises already seeded (v2), skipping")
             return
         }
-        print("[SingCoach] Seeding exercises...")
+
+        // Guard: only seed if no library exercises exist already
+        let descriptor = FetchDescriptor<Exercise>(
+            predicate: #Predicate { $0.templateID != nil }
+        )
+        let existing = (try? context.fetch(descriptor)) ?? []
+        guard existing.isEmpty else {
+            print("[SingCoach] Library exercises already present (\(existing.count)), skipping seed")
+            UserDefaults.standard.set(true, forKey: seededKey)
+            return
+        }
+
+        print("[SingCoach] Seeding \(ExerciseSeeder.seedExercises.count) library exercises...")
+        for template in ExerciseSeeder.seedExercises {
+            let exercise = template.toExercise()
+            context.insert(exercise)
+        }
+        try? context.save()
         UserDefaults.standard.set(true, forKey: seededKey)
+        print("[SingCoach] Exercise seeding complete.")
     }
 
     // Exercises are seeded on first fetch in ExerciseStore
@@ -26,7 +46,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Exhale on a sustained 'sss' sound to build breath control and efficiency.",
                 instruction: "Take a deep diaphragmatic breath, then exhale slowly on a sustained 'sss' sound. Aim for 20-30 seconds. Keep airflow steady and even.",
                 focusArea: "Breath control and support",
-                youtubeURL: "https://www.youtube.com/watch?v=XmCGzAW3GW8",
+                youtubeURL: "https://www.youtube.com/watch?v=OtxPre6RvaA",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -43,7 +63,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "A breathing technique that builds diaphragmatic awareness and capacity.",
                 instruction: "Inhale for 4 counts, hold for 7 counts, exhale for 8 counts. Place one hand on your belly to feel diaphragmatic movement.",
                 focusArea: "Diaphragm engagement and breath capacity",
-                youtubeURL: "https://www.youtube.com/watch?v=YRPh_GaiL8s",
+                youtubeURL: "https://www.youtube.com/watch?v=GEJ30bnp780",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -60,7 +80,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Short, sharp breath pulses to activate the diaphragm and build breath agility.",
                 instruction: "Exhale on sharp 'sh' or 'ss' pulses — one per beat at 60-80 BPM. Keep the rest of your body relaxed.",
                 focusArea: "Diaphragm agility and breath articulation",
-                youtubeURL: "https://www.youtube.com/watch?v=GKuqAw4m9cM",
+                youtubeURL: "https://www.youtube.com/watch?v=m7wpP_-_-ck",
                 durationMinutes: 5,
                 difficulty: "intermediate",
                 tips: [
@@ -78,7 +98,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Slide through your full range on a continuous 'wee' sound like a siren.",
                 instruction: "Start at your lowest comfortable note and slide continuously up to your highest, then back down. Use an 'ng' or 'wee' sound.",
                 focusArea: "Full range pitch awareness and smooth transitions",
-                youtubeURL: "https://www.youtube.com/watch?v=y5DKOL5yQNQ",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -95,7 +115,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Match your voice precisely to a drone note to develop pitch accuracy.",
                 instruction: "Play a sustained tone (use a piano, tuner app, or GarageBand drone). Sing the same note. Adjust until they blend perfectly.",
                 focusArea: "Pitch accuracy and ear training",
-                youtubeURL: "https://www.youtube.com/watch?v=ExRrlvCdcz8",
+                youtubeURL: "https://www.youtube.com/watch?v=Mtp8qqo3qm8",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -112,7 +132,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Practice jumping between musical intervals to build pitch memory.",
                 instruction: "Starting on any note, jump up a third, then a fifth, landing accurately each time. Sing on 'la' or 'na'. Use a piano or app for reference.",
                 focusArea: "Interval recognition and pitch memory",
-                youtubeURL: "https://www.youtube.com/watch?v=sJ9uQUBBDuY",
+                youtubeURL: "https://www.youtube.com/watch?v=mYaicBcsUAI",
                 durationMinutes: 10,
                 difficulty: "intermediate",
                 tips: [
@@ -130,7 +150,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Hum a 5-note scale to build nasal resonance and find forward placement.",
                 instruction: "Hum 'mmm' on a 5-note scale (do-re-mi-fa-sol-fa-mi-re-do). Feel vibration in your lips and cheekbones. Keep the sound buzzy and forward.",
                 focusArea: "Nasal resonance and forward placement",
-                youtubeURL: "https://www.youtube.com/watch?v=wPJkn5WL5WY",
+                youtubeURL: "https://www.youtube.com/watch?v=VVM9uJ25VbM",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -147,7 +167,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Use the 'ng' consonant to anchor resonance in the hard palate.",
                 instruction: "Hold an 'ng' sound (as in 'sing') and feel vibration in the back of your hard palate. Then slide onto vowels while maintaining that placement.",
                 focusArea: "Hard palate resonance and placement consistency",
-                youtubeURL: "https://www.youtube.com/watch?v=4-plXo8JQLY",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -164,7 +184,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Create a buzzy forward tone to develop mask resonance.",
                 instruction: "Sing on a buzzy 'zee' or 'vvv' sound and direct the vibration to your lips, nose, and forehead. Scales or sustained tones both work.",
                 focusArea: "Mask resonance and projection",
-                youtubeURL: "https://www.youtube.com/watch?v=W3EMQmfnFrw",
+                youtubeURL: "https://www.youtube.com/watch?v=Q_CTNsYTkD4",
                 durationMinutes: 5,
                 difficulty: "intermediate",
                 tips: [
@@ -182,7 +202,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Bubble your lips on scales to build vocal agility without strain.",
                 instruction: "Blow air through loosely closed lips to create a 'brrr' trill. Maintain this as you sing scales up and down. Keep the trill even.",
                 focusArea: "Vocal agility and breath-voice coordination",
-                youtubeURL: "https://www.youtube.com/watch?v=e0MhNonJJP4",
+                youtubeURL: "https://www.youtube.com/watch?v=VVM9uJ25VbM",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -199,7 +219,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Rolled 'r' scales to develop tongue agility and coordinate airflow.",
                 instruction: "Roll your tongue ('rrr' as in Spanish) and sustain it through scales. Works breath support and tongue independence simultaneously.",
                 focusArea: "Tongue agility and airflow",
-                youtubeURL: "https://www.youtube.com/watch?v=HVFy6HFfTMU",
+                youtubeURL: "https://www.youtube.com/watch?v=VVM9uJ25VbM",
                 durationMinutes: 5,
                 difficulty: "intermediate",
                 tips: [
@@ -216,7 +236,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Sing rapid 5-note ascending and descending runs to build speed.",
                 instruction: "Sing do-re-mi-fa-sol-fa-mi-re-do quickly on 'la' or 'na'. Start slow, then increase speed while maintaining clarity on each note.",
                 focusArea: "Melodic agility and note clarity at speed",
-                youtubeURL: "https://www.youtube.com/watch?v=AXA2cq3f4cU",
+                youtubeURL: "https://www.youtube.com/watch?v=mYaicBcsUAI",
                 durationMinutes: 5,
                 difficulty: "intermediate",
                 tips: [
@@ -234,7 +254,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Slide from chest to head voice to explore and smooth the passaggio.",
                 instruction: "Start in your comfortable chest voice, then slide upward through your break into head voice. Use 'no' or 'nee' as the vowel.",
                 focusArea: "Register transitions and passaggio",
-                youtubeURL: "https://www.youtube.com/watch?v=pVKxJXHSHpU",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "intermediate",
                 tips: [
@@ -251,7 +271,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Find mixed voice by blending chest and head resonance in the middle range.",
                 instruction: "Siren through your middle range (the passaggio zone) looking for a 'mixed' tone that's neither pure chest nor pure head. Use 'wee' or 'me'.",
                 focusArea: "Mixed voice development",
-                youtubeURL: "https://www.youtube.com/watch?v=LoUc-M0uKhI",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 10,
                 difficulty: "advanced",
                 tips: [
@@ -268,7 +288,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Practice intentional flips to falsetto to develop register control.",
                 instruction: "Sing up a scale in chest voice, then intentionally flip into falsetto at your break. Then practice landing softly vs hard. Use 'hoo' or 'hee'.",
                 focusArea: "Falsetto access and register control",
-                youtubeURL: "https://www.youtube.com/watch?v=YaGLSFuJxVM",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "intermediate",
                 tips: [
@@ -286,7 +306,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Sing all five vowels on a scale to practice consistent shape and resonance.",
                 instruction: "On each note of a 5-tone scale, sing through i-e-a-o-u. Keep your jaw, tongue and soft palate consistent. Focus on resonance continuity.",
                 focusArea: "Vowel consistency and resonance across vowels",
-                youtubeURL: "https://www.youtube.com/watch?v=sQi28QSLKH8",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 10,
                 difficulty: "beginner",
                 tips: [
@@ -303,7 +323,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Modify vowels toward 'ah' or 'aw' on high notes to reduce tension.",
                 instruction: "As you ascend into your upper range, gradually modify closed vowels (i, e) toward more open shapes (ah, aw). This reduces laryngeal tension.",
                 focusArea: "Vowel modification for upper range access",
-                youtubeURL: "https://www.youtube.com/watch?v=jdCvt8nDTAs",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 10,
                 difficulty: "intermediate",
                 tips: [
@@ -320,7 +340,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Maintain the same vowel sound through pitch changes for consistent tone.",
                 instruction: "Sustain a single vowel (e.g. 'ah') while moving through a 5-note arpeggio. The vowel shape should stay identical regardless of pitch.",
                 focusArea: "Vowel stability and consistent resonance",
-                youtubeURL: "https://www.youtube.com/watch?v=1kSMwMQ9YLw",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "intermediate",
                 tips: [
@@ -338,7 +358,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Work the articulator muscles with explosive consonants for crisp diction.",
                 instruction: "Rapidly repeat 'p-t-k-p-t-k' on a breath. Then sing it on a repeated pitch. Focus on snappy, clean release on each consonant.",
                 focusArea: "Articulator agility and consonant crispness",
-                youtubeURL: "https://www.youtube.com/watch?v=Ye1TsQ5fBvs",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -355,7 +375,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Sing tongue-twister style phrases to improve clarity at speed.",
                 instruction: "Sing 'She sells seashells' or 'Red lorry, yellow lorry' on a single pitch repeatedly, then on a scale. Focus on clear consonants without tension.",
                 focusArea: "Diction clarity in musical context",
-                youtubeURL: "https://www.youtube.com/watch?v=mH3Xm8S_iuE",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -372,7 +392,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Short punchy syllables on scale steps to build rhythmic precision.",
                 instruction: "Sing 'ha-ha-ha' or 'ba-ba-ba' in short staccato bursts on ascending scale degrees. Focus on clean onset and release of each syllable.",
                 focusArea: "Rhythmic precision and clean consonant onset",
-                youtubeURL: "https://www.youtube.com/watch?v=eynBhYDT4cc",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "intermediate",
                 tips: [
@@ -390,7 +410,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "The gentlest way to open your full vocal range with zero strain.",
                 instruction: "Initiate a real yawn to open the throat. As you exhale, let the sigh descend from high to low — include your full range naturally.",
                 focusArea: "Gentle range opening and throat relaxation",
-                youtubeURL: "https://www.youtube.com/watch?v=UhR-pGwJkmo",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -407,7 +427,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "A simple 5-note scale on 'mah' to wake up the voice gently.",
                 instruction: "Sing do-re-mi-fa-sol-fa-mi-re-do on 'mah' in a comfortable mid-range. No pushing, no tension. Just wake up the voice.",
                 focusArea: "General voice activation",
-                youtubeURL: "https://www.youtube.com/watch?v=CQWH5sWFGYI",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 5,
                 difficulty: "beginner",
                 tips: [
@@ -424,7 +444,7 @@ final class ExerciseSeeder: ObservableObject {
                 description: "Physical release exercises to remove tension before singing.",
                 instruction: "Massage your jaw, let it hang loose. Roll your tongue around, stick it out. Then gently move your jaw side to side. Do 30 seconds of each.",
                 focusArea: "Physical tension release in jaw and tongue",
-                youtubeURL: "https://www.youtube.com/watch?v=6GNMB7S8Kxk",
+                youtubeURL: "https://www.youtube.com/watch?v=JyfUn0FC5oo",
                 durationMinutes: 3,
                 difficulty: "beginner",
                 tips: [
@@ -464,7 +484,9 @@ struct ExerciseTemplate {
             durationMinutes: durationMinutes,
             difficulty: difficulty,
             tips: tips,
-            keywords: keywords
+            keywords: keywords,
+            isUserCreated: false,
+            songID: nil  // library exercises have no song
         )
     }
 }

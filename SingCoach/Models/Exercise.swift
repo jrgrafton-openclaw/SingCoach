@@ -17,6 +17,8 @@ final class Exercise {
     var tips: [String]
     var keywords: [String]
     var createdAt: Date
+    var isUserCreated: Bool  // FEATURE 3: distinguish user-created from library exercises
+    var songID: UUID?        // FEATURE 3: link to a specific song (nil = library exercise)
 
     init(
         id: UUID = UUID(),
@@ -32,7 +34,9 @@ final class Exercise {
         difficulty: String = "beginner",
         tips: [String] = [],
         keywords: [String] = [],
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        isUserCreated: Bool = false,
+        songID: UUID? = nil
     ) {
         self.id = id
         self.templateID = templateID
@@ -48,6 +52,8 @@ final class Exercise {
         self.tips = tips
         self.keywords = keywords
         self.createdAt = createdAt
+        self.isUserCreated = isUserCreated
+        self.songID = songID
     }
 }
 

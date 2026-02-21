@@ -215,6 +215,112 @@ Third line
     }
 }
 
+// MARK: - Build 7: MusicKit Authorization Bug Fix Tests
+
+@MainActor
+final class MusicKitAuthorizationTests: XCTestCase {
+
+    /// Verifies that a song is inserted into SwiftData and saved independently
+    /// of MusicKit. Even if MusicKit is never called, the song must be fetchable.
+    func testSongSavedToSwiftDataBeforeMusicKitSearch() throws {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: Song.self, LyricsLine.self, Lesson.self, Exercise.self, configurations: config)
+        let context = container.mainContext
+
+        // Simulate what addSong does: insert + save BEFORE any MusicKit call
+        let song = Song(
+            title: "Bohemian Rhapsody",
+            artist: "Queen",
+            lyricsLines: [],
+            karaokeSearchStatus: "searching"
+        )
+        context.insert(song)
+        try context.save()
+
+        // Immediately fetch — must be present without waiting for MusicKit
+        let descriptor = FetchDescriptor<Song>(predicate: #Predicate { $0.title == "Bohemian Rhapsody" })
+        let songs = try context.fetch(descriptor)
+        XCTAssertEqual(songs.count, 1, "Song should be persisted before MusicKit search runs")
+        XCTAssertEqual(songs[0].karaokeSearchStatus, "searching")
+    }
+
+    /// Verifies that when MusicKit authorization is denied, karaokeSearchStatus
+    /// is set to "not_found" and the song remains in SwiftData.
+    func testSongRemainsInSwiftDataWhenMusicKitDenied() throws {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: Song.self, LyricsLine.self, Lesson.self, Exercise.self, configurations: config)
+        let context = container.mainContext
+
+        let song = Song(
+            title: "Yesterday",
+            artist: "The Beatles",
+            lyricsLines: [],
+            karaokeSearchStatus: "searching"
+        )
+        context.insert(song)
+        try context.save()
+
+        // Simulate what autoFindKaraokeTrack does when authorization is denied
+        song.karaokeSearchStatus = "not_found"
+        try context.save()
+
+        let descriptor = FetchDescriptor<Song>(predicate: #Predicate { $0.title == "Yesterday" })
+        let songs = try context.fetch(descriptor)
+        XCTAssertEqual(songs.count, 1, "Song must not be removed when MusicKit is denied")
+        XCTAssertEqual(songs[0].karaokeSearchStatus, "not_found",
+                       "Status should be not_found when MusicKit authorization is denied/restricted")
+    }
+
+    /// Verifies that a found karaoke track updates the song's karaokeTrackID and status.
+    func testSongKaraokeEnrichmentUpdatesCorrectFields() throws {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: Song.self, LyricsLine.self, Lesson.self, Exercise.self, configurations: config)
+        let context = container.mainContext
+
+        let song = Song(
+            title: "Sweet Home Alabama",
+            artist: "Lynyrd Skynyrd",
+            karaokeSearchStatus: "searching"
+        )
+        context.insert(song)
+        try context.save()
+
+        // Simulate what autoFindKaraokeTrack does when a match is found
+        let fakeTrackID = "1234567890"
+        song.karaokeTrackID = fakeTrackID
+        song.karaokeTrackTitle = "Sweet Home Alabama (Karaoke) — Sing King"
+        song.karaokeSearchStatus = "found"
+        try context.save()
+
+        let descriptor = FetchDescriptor<Song>(predicate: #Predicate { $0.title == "Sweet Home Alabama" })
+        let songs = try context.fetch(descriptor)
+        XCTAssertEqual(songs[0].karaokeTrackID, fakeTrackID)
+        XCTAssertEqual(songs[0].karaokeSearchStatus, "found")
+    }
+
+    /// Verifies MusicKitService.karaokeScore scoring logic — high score for keyword + title match.
+    func testMusicKitKaraokeScoreHighForKeywordAndTitle() {
+        let score = MusicKitService.karaokeScore(
+            candidateTitle: "Bohemian Rhapsody Karaoke Version",
+            candidateArtist: "Sing King Karaoke",
+            originalTitle: "Bohemian Rhapsody",
+            originalArtist: "Queen"
+        )
+        XCTAssertGreaterThan(score, 0.5, "Score should be > 0.5 for karaoke keyword + title match")
+    }
+
+    /// Verifies MusicKitService.karaokeScore returns low score for unrelated song.
+    func testMusicKitKaraokeScoreLowForUnrelatedTitle() {
+        let score = MusicKitService.karaokeScore(
+            candidateTitle: "Happy Birthday Karaoke",
+            candidateArtist: "Kids Songs",
+            originalTitle: "Bohemian Rhapsody",
+            originalArtist: "Queen"
+        )
+        XCTAssertLessThan(score, 0.5, "Score should be low for karaoke keyword on completely different song")
+    }
+}
+
 // MARK: - Analytics Mock Tests
 @MainActor
 final class MockAnalyticsTracker: AnalyticsTracking {

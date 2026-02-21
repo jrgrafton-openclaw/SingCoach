@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- MusicKit entitlement: REQUIRES manual enablement in Developer Portal.
+         Go to: https://developer.apple.com/account/resources/identifiers/list
+         Find: com.jrgrafton.singcoach → Edit → Capabilities → Enable MusicKit
+         Then regenerate the provisioning profile (sigh --force) and re-run fastlane.
+         Until then, the com.apple.developer.musickit key is commented out to allow building. -->
+</dict>
+</plist>

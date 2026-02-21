@@ -6,8 +6,10 @@ import Combine
 final class RecordingViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var waveformSamples: [Float] = Array(repeating: 0, count: 40)
+    // Bug 6 fix: recordingDuration forwarded via Combine from recorder.$durationSeconds
     @Published var recordingDuration: Double = 0
     @Published var transcriptionStatus: TranscriptionStatus = .pending
+    // Bug 5 fix: repurposed as showInlineRecorder (sheet removed, inline recorder used)
     @Published var showRecordingSheet = false
 
     let recorder = AudioRecordingService()
@@ -17,23 +19,39 @@ final class RecordingViewModel: ObservableObject {
     private var currentFileURL: URL?
     private var song: Song?
     private var modelContext: ModelContext?
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        // Forward waveform samples from recorder
+        recorder.$waveformSamples
+            .receive(on: RunLoop.main)
+            .assign(to: &$waveformSamples)
+
+        // Bug 6 fix: forward recording duration from recorder so GlobalRecordingBanner can show it
+        recorder.$durationSeconds
+            .receive(on: RunLoop.main)
+            .assign(to: &$recordingDuration)
+    }
 
     func configure(song: Song, modelContext: ModelContext) {
         self.song = song
         self.modelContext = modelContext
     }
 
-    func startRecording() {
+    func startRecording(recordingType: String = "lesson") {
         guard let song else { return }
         do {
             let url = try recorder.startRecording(songID: song.id)
             currentFileURL = url
+            currentRecordingType = recordingType
             isRecording = true
-            print("[SingCoach] RecordingVM: started recording for song \(song.title)")
+            print("[SingCoach] RecordingVM: started recording for song \(song.title), type=\(recordingType)")
         } catch {
             print("[SingCoach] Failed to start recording: \(error)")
         }
     }
+
+    private var currentRecordingType: String = "lesson"
 
     func stopRecording() async {
         guard let song, let modelContext, let fileURL = currentFileURL else { return }
@@ -45,14 +63,21 @@ final class RecordingViewModel: ObservableObject {
             songID: song.id,
             audioFileURL: fileURL.absoluteString,
             durationSeconds: duration,
-            transcriptionStatus: TranscriptionStatus.pending.rawValue
+            transcriptionStatus: TranscriptionStatus.pending.rawValue,
+            recordingType: currentRecordingType
         )
         song.lessons.append(lesson)
         modelContext.insert(lesson)
         try? modelContext.save()
 
         AnalyticsService.shared.lessonRecorded(durationSeconds: duration)
-        print("[SingCoach] Lesson saved, starting transcription")
+        print("[SingCoach] Lesson saved (type=\(currentRecordingType)), starting transcription")
+
+        // Skip transcription for performances
+        guard currentRecordingType != "performance" else {
+            showRecordingSheet = false
+            return
+        }
 
         // Start transcription
         lesson.transcriptionStatus = TranscriptionStatus.processing.rawValue

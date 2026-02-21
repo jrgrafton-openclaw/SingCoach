@@ -11,6 +11,9 @@ final class Song {
     var appleMusicID: String?
     var karaokeAppleMusicID: String?
     var karaokeOverrideByUser: Bool
+    var karaokeTrackID: String?       // MusicKit Song.id for selected karaoke track
+    var karaokeTrackTitle: String?    // Display name of matched karaoke track
+    var karaokeSearchStatus: String   // "idle" | "searching" | "found" | "not_found"
     @Relationship(deleteRule: .cascade) var lessons: [Lesson]
     @Relationship(deleteRule: .cascade) var exercises: [Exercise]
     var createdAt: Date
@@ -24,6 +27,9 @@ final class Song {
         appleMusicID: String? = nil,
         karaokeAppleMusicID: String? = nil,
         karaokeOverrideByUser: Bool = false,
+        karaokeTrackID: String? = nil,
+        karaokeTrackTitle: String? = nil,
+        karaokeSearchStatus: String = "idle",
         lessons: [Lesson] = [],
         exercises: [Exercise] = [],
         createdAt: Date = Date()
@@ -36,6 +42,9 @@ final class Song {
         self.appleMusicID = appleMusicID
         self.karaokeAppleMusicID = karaokeAppleMusicID
         self.karaokeOverrideByUser = karaokeOverrideByUser
+        self.karaokeTrackID = karaokeTrackID
+        self.karaokeTrackTitle = karaokeTrackTitle
+        self.karaokeSearchStatus = karaokeSearchStatus
         self.lessons = lessons
         self.exercises = exercises
         self.createdAt = createdAt
@@ -50,6 +59,6 @@ final class Song {
     }
 
     var mostRecentLesson: Lesson? {
-        lessons.sorted { $0.date > $1.date }.first
+        lessons.filter { !$0.isPerformance }.sorted { $0.date > $1.date }.first
     }
 }

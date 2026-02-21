@@ -16,11 +16,17 @@ protocol AudioPlayerProtocol: AnyObject {
     func seek(to time: TimeInterval)
 }
 
+enum AudioPlaybackError: LocalizedError {
+    case fileNotFound
+    var errorDescription: String? { "Audio file not found." }
+}
+
 @MainActor
 final class AudioPlaybackService: NSObject, ObservableObject, AudioPlayerProtocol {
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
+    @Published var loadError: String? = nil
     var playbackRate: Float = 1.0 {
         didSet { audioPlayer?.rate = playbackRate }
     }
@@ -30,6 +36,12 @@ final class AudioPlaybackService: NSObject, ObservableObject, AudioPlayerProtoco
     private var timer: Timer?
 
     func load(url: URL) throws {
+        // Bug 8 fix: verify file exists before attempting load
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            loadError = "Audio file not found."
+            throw AudioPlaybackError.fileNotFound
+        }
+        loadError = nil
         audioPlayer = try AVAudioPlayer(contentsOf: url)
         audioPlayer?.delegate = self
         audioPlayer?.prepareToPlay()
@@ -41,7 +53,12 @@ final class AudioPlaybackService: NSObject, ObservableObject, AudioPlayerProtoco
     }
 
     func play() {
-        audioPlayer?.play()
+        // Bug 8 fix: guard against nil player (silent load failure)
+        guard let audioPlayer else {
+            print("[SingCoach] AudioPlayer: play() called but player is nil")
+            return
+        }
+        audioPlayer.play()
         isPlaying = true
         startTimer()
     }

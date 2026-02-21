@@ -7,9 +7,15 @@ struct AddSongView: View {
     @ObservedObject var viewModel: SongsViewModel
 
     @State private var searchText = ""
-    @State private var manualTitle = ""
-    @State private var manualArtist = ""
     @State private var showManualEntry = false
+    @FocusState private var isSearchFocused: Bool
+
+    func performSearch() {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return }
+        isSearchFocused = false
+        Task { await viewModel.search(query: query) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -17,39 +23,57 @@ struct AddSongView: View {
                 SingCoachTheme.background.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(SingCoachTheme.textSecondary)
-                        TextField("Search by song title or artist...", text: $searchText)
-                            .foregroundColor(SingCoachTheme.textPrimary)
-                            .onSubmit {
-                                Task { await viewModel.search(query: searchText) }
+                    // Search bar — search on submit or button tap only (no live/debounce)
+                    HStack(spacing: 8) {
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(SingCoachTheme.textSecondary)
+                            TextField("Song title or artist...", text: $searchText)
+                                .foregroundColor(SingCoachTheme.textPrimary)
+                                .autocorrectionDisabled()
+                                .focused($isSearchFocused)
+                                .onSubmit { performSearch() }
+                            if !searchText.isEmpty {
+                                Button {
+                                    searchText = ""
+                                    viewModel.searchResults = []
+                                    viewModel.errorMessage = nil
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(SingCoachTheme.textSecondary)
+                                }
                             }
-                        if viewModel.isSearching {
-                            ProgressView()
-                                .scaleEffect(0.8)
                         }
+                        .padding(12)
+                        .background(SingCoachTheme.surface)
+                        .cornerRadius(12)
+
+                        // Search button
+                        Button(action: performSearch) {
+                            if viewModel.isSearching {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.black)
+                                    .frame(width: 44, height: 44)
+                                    .background(SingCoachTheme.accent)
+                                    .cornerRadius(12)
+                            } else {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .frame(width: 44, height: 44)
+                                    .background(searchText.trimmingCharacters(in: .whitespaces).isEmpty
+                                                ? SingCoachTheme.surface
+                                                : SingCoachTheme.accent)
+                                    .foregroundColor(searchText.trimmingCharacters(in: .whitespaces).isEmpty
+                                                     ? SingCoachTheme.textSecondary
+                                                     : .black)
+                                    .cornerRadius(12)
+                            }
+                        }
+                        .disabled(searchText.trimmingCharacters(in: .whitespaces).isEmpty || viewModel.isSearching)
                     }
-                    .padding(12)
-                    .background(SingCoachTheme.surface)
-                    .cornerRadius(12)
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
-
-                    Button {
-                        Task { await viewModel.search(query: searchText) }
-                    } label: {
-                        Text("Search")
-                            .font(.system(size: 16, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(SingCoachTheme.accent)
-                            .foregroundColor(.black)
-                            .cornerRadius(12)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
 
                     if let error = viewModel.errorMessage {
                         Text(error)
@@ -78,7 +102,6 @@ struct AddSongView: View {
                             .padding(.top, 12)
                         }
                     } else if !viewModel.isSearching && searchText.isEmpty {
-                        // Manual entry option
                         Spacer()
                         Button {
                             showManualEntry.toggle()
@@ -89,6 +112,21 @@ struct AddSongView: View {
                                 .underline()
                         }
                         .padding(.bottom, 20)
+                    } else if !viewModel.isSearching && !searchText.isEmpty && viewModel.searchResults.isEmpty {
+                        Spacer()
+                        Text("No results for \"\(searchText)\"")
+                            .font(.system(size: 14))
+                            .foregroundColor(SingCoachTheme.textSecondary)
+                        Button {
+                            showManualEntry.toggle()
+                        } label: {
+                            Text("Add manually instead")
+                                .font(.system(size: 14))
+                                .foregroundColor(SingCoachTheme.accent)
+                                .underline()
+                        }
+                        .padding(.top, 8)
+                        Spacer()
                     } else {
                         Spacer()
                     }

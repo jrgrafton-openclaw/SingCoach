@@ -10,6 +10,7 @@ final class Lesson {
     var durationSeconds: Double
     var transcript: String?
     var transcriptionStatus: String
+    var recordingType: String  // "lesson" or "performance" — FEATURE 1
     @Relationship(deleteRule: .nullify) var recommendedExercises: [Exercise]
 
     init(
@@ -20,6 +21,7 @@ final class Lesson {
         durationSeconds: Double = 0,
         transcript: String? = nil,
         transcriptionStatus: String = TranscriptionStatus.pending.rawValue,
+        recordingType: String = "lesson",
         recommendedExercises: [Exercise] = []
     ) {
         self.id = id
@@ -29,11 +31,16 @@ final class Lesson {
         self.durationSeconds = durationSeconds
         self.transcript = transcript
         self.transcriptionStatus = transcriptionStatus
+        self.recordingType = recordingType
         self.recommendedExercises = recommendedExercises
     }
 
     var status: TranscriptionStatus {
         TranscriptionStatus(rawValue: transcriptionStatus) ?? .pending
+    }
+
+    var isPerformance: Bool {
+        recordingType == "performance"
     }
 }
 
