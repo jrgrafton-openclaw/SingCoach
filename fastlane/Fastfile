@@ -104,6 +104,32 @@ EOF
         --api-key-path /tmp/asc_api_key.json
     }
 
+    # IMPORTANT: pilot upload with --skip_waiting_for_build_processing uploads the IPA
+    # but does NOT distribute to testers. We must wait for ASC to finish processing, then
+    # explicitly distribute. Poll until the build is ready, then distribute.
+    UI.message("Waiting for ASC to finish processing build #{next_build}...")
+    sleep(60) # Give ASC time to start processing
+    sh %Q{
+      for i in $(seq 1 10); do
+        STATUS=$(bundle exec fastlane pilot list \
+          --app_identifier "com.jrgrafton.singcoach" \
+          --app-platform "ios" \
+          --api-key-path /tmp/asc_api_key.json 2>&1 | grep "#{next_build}" | head -1)
+        if echo "$STATUS" | grep -q "#{next_build}"; then
+          echo "Build #{next_build} found in pilot list, distributing..."
+          bundle exec fastlane pilot distribute \
+            --app_identifier "com.jrgrafton.singcoach" \
+            --build_number "#{next_build}" \
+            --app_version "1.0" \
+            --app-platform "ios" \
+            --api-key-path /tmp/asc_api_key.json
+          break
+        fi
+        echo "Build not ready yet, waiting 30s... (attempt $i/10)"
+        sleep(30)
+      done
+    }
+
     build_number = next_build.to_s
     version_number = sh("/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' '#{info_plist_path}'", log: false).strip
 
