@@ -44,46 +44,69 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
         print("[SingCoach] Transcription started: \(audioFileURL.lastPathComponent)")
 
         let request = SFSpeechURLRecognitionRequest(url: audioFileURL)
-        request.shouldReportPartialResults = false
+        // Enable partial results so we capture the best available transcript even if the
+        // recogniser stops or errors early. Apple's network speech service may cap long
+        // audio (e.g. 22-min lessons) — with partial results we return what was recognised
+        // rather than nothing. isFinal = true signals the definitive end-of-stream result.
+        request.shouldReportPartialResults = true
         request.addsPunctuation = true
         request.taskHint = .dictation
         // Lesson 27: removed requiresOnDeviceRecognition = true (limits to ~60s)
         // Using network transcription for full-length recordings
 
-        // Run recognition task. SFSpeechRecognizer is @MainActor-bound (non-Sendable) so we
-        // call recognitionTask directly on @MainActor using withCheckedContinuation.
-        // The callback fires on a private SFSpeech background queue but continuation.resume
-        // is thread-safe regardless of which thread calls it.
+        // All recognition state is accessed on DispatchQueue.main (the @MainActor executor),
+        // serialising reads/writes to didResume and bestTranscript without any explicit lock.
+        // This eliminates the Swift 6 data race that previously caused a double-resume crash:
+        //   - recognition callback (SFSpeech background queue) → dispatched to main
+        //   - timeout DispatchWorkItem (global queue) → dispatched to main
+        // Both arrive on main serially, so there is no TOCTOU race on didResume.
         return await withCheckedContinuation { continuation in
             var didResume = false
+            var bestTranscript = ""
 
             // Safety timeout: prevents a hung continuation if the recognizer goes silent
-            // (neither result nor error). Allow up to 5 minutes for long recordings.
             let timeoutWork = DispatchWorkItem {
-                if !didResume {
+                DispatchQueue.main.async {
+                    guard !didResume else { return }
                     didResume = true
-                    print("[SingCoach] Transcription: 5-minute timeout reached, aborting")
-                    continuation.resume(returning: .failure(TranscriptionError.timeout))
+                    if !bestTranscript.isEmpty {
+                        print("[SingCoach] Transcription: timeout — returning best partial (\(bestTranscript.split(separator: " ").count) words)")
+                        continuation.resume(returning: .success(bestTranscript))
+                    } else {
+                        print("[SingCoach] Transcription: 5-minute timeout, no partial transcript available")
+                        continuation.resume(returning: .failure(TranscriptionError.timeout))
+                    }
                 }
             }
             DispatchQueue.global().asyncAfter(deadline: .now() + 300, execute: timeoutWork)
 
             recognizer.recognitionTask(with: request) { result, error in
-                if let result, result.isFinal {
-                    if !didResume {
-                        didResume = true
-                        timeoutWork.cancel()
-                        let transcript = result.bestTranscription.formattedString
-                        print("[SingCoach] Transcription done: \(transcript.split(separator: " ").count) words")
-                        continuation.resume(returning: .success(transcript))
+                DispatchQueue.main.async {
+                    if let result {
+                        // Always update best partial transcript
+                        bestTranscript = result.bestTranscription.formattedString
+
+                        if result.isFinal {
+                            guard !didResume else { return }
+                            didResume = true
+                            timeoutWork.cancel()
+                            print("[SingCoach] Transcription done (final): \(bestTranscript.split(separator: " ").count) words")
+                            continuation.resume(returning: .success(bestTranscript))
+                        }
                     }
-                }
-                if let error {
-                    if !didResume {
+                    if let error {
+                        guard !didResume else { return }
                         didResume = true
                         timeoutWork.cancel()
-                        print("[SingCoach] Transcription failed: \(error)")
-                        continuation.resume(returning: .failure(error))
+                        // Return best partial if available (common for long recordings where the
+                        // service stops after ~1 min and emits an error rather than isFinal=true)
+                        if !bestTranscript.isEmpty {
+                            print("[SingCoach] Transcription: error after partial (\(bestTranscript.split(separator: " ").count) words) — using partial. Error: \(error)")
+                            continuation.resume(returning: .success(bestTranscript))
+                        } else {
+                            print("[SingCoach] Transcription failed (no partial): \(error)")
+                            continuation.resume(returning: .failure(error))
+                        }
                     }
                 }
             }

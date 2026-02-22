@@ -74,12 +74,17 @@ final class AudioRecordingService: NSObject, ObservableObject, AudioRecordingPro
     func stopRecording() -> Double {
         let duration = startTime.map { Date().timeIntervalSince($0) } ?? 0
         audioRecorder?.stop()
+        audioRecorder = nil   // release the recorder so AVFoundation can close the file
         timer?.invalidate()
         timer = nil
         isRecording = false
         durationSeconds = duration
         waveformSamples = Array(repeating: 0, count: 40)
-        print("[SingCoach] Recording stopped, duration=\(duration)s")
+        // Deactivate the recording session so SFSpeechURLRecognitionRequest can start cleanly.
+        // Leaving a .playAndRecord session active while speech recognition starts causes
+        // session conflicts and an EXC_CRASH on some iOS builds.
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        print("[SingCoach] Recording stopped, duration=\(duration)s, session deactivated")
         return duration
     }
 

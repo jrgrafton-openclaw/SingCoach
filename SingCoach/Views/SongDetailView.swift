@@ -1071,6 +1071,7 @@ struct LessonRowView: View {
 
 struct LessonDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     let lesson: Lesson
     @StateObject private var player = AudioPlaybackService()
     @State private var speed: Float = 1.0
@@ -1079,6 +1080,8 @@ struct LessonDetailSheet: View {
     @State private var localSeek: Double = 0
     // Bug 8 fix: show load error
     @State private var showLoadError = false
+    // Refresh transcript
+    @State private var isRetranscribing = false
 
     let speeds: [Float] = [0.75, 1.0, 1.25, 1.5]
 
@@ -1206,16 +1209,51 @@ struct LessonDetailSheet: View {
                         .cornerRadius(16)
                         .padding(.horizontal, 16)
 
-                        if let transcript = lesson.transcript, !transcript.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Transcript")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(SingCoachTheme.accent)
+                        // Transcript card — always visible for non-performance lessons
+                        if !lesson.isPerformance {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("Transcript")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(SingCoachTheme.accent)
+                                    Spacer()
+                                    if isRetranscribing {
+                                        HStack(spacing: 6) {
+                                            ProgressView().scaleEffect(0.7)
+                                            Text("Transcribing…")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(SingCoachTheme.textSecondary)
+                                        }
+                                    } else {
+                                        Button { refreshTranscript() } label: {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "arrow.clockwise")
+                                                    .font(.system(size: 11, weight: .semibold))
+                                                Text("Refresh")
+                                                    .font(.system(size: 12, weight: .semibold))
+                                            }
+                                            .foregroundColor(SingCoachTheme.accent)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 5)
+                                            .background(SingCoachTheme.accent.opacity(0.15))
+                                            .cornerRadius(8)
+                                        }
+                                    }
+                                }
 
-                                Text(transcript)
-                                    .font(.system(size: 15))
-                                    .foregroundColor(SingCoachTheme.textSecondary)
-                                    .lineSpacing(6)
+                                if let transcript = lesson.transcript, !transcript.isEmpty {
+                                    Text(transcript)
+                                        .font(.system(size: 15))
+                                        .foregroundColor(SingCoachTheme.textSecondary)
+                                        .lineSpacing(6)
+                                } else {
+                                    Text(lesson.status == .processing
+                                         ? "Transcribing recording…"
+                                         : "No transcript yet — tap Refresh to transcribe.")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(SingCoachTheme.textSecondary.opacity(0.6))
+                                        .italic()
+                                }
                             }
                             .padding(16)
                             .background(SingCoachTheme.surface)
@@ -1259,6 +1297,47 @@ struct LessonDetailSheet: View {
                 showLoadError = true
                 print("[SingCoach] LessonDetailSheet onAppear: failed to load: \(error)")
             }
+        }
+    }
+
+    func refreshTranscript() {
+        guard !isRetranscribing, !lesson.isPerformance else { return }
+        isRetranscribing = true
+        let audioURL = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+        let allExercises = (try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? []
+        Task {
+            lesson.transcriptionStatus = TranscriptionStatus.processing.rawValue
+            try? modelContext.save()
+
+            let service = TranscriptionService()
+            let granted = await service.requestPermission()
+            guard granted else {
+                lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
+                try? modelContext.save()
+                isRetranscribing = false
+                return
+            }
+            // Lesson 21: brief delay after permission dialog
+            try? await Task.sleep(nanoseconds: 300_000_000)
+
+            let result = await service.transcribe(audioFileURL: audioURL)
+            switch result {
+            case .success(let transcript):
+                lesson.transcript = transcript
+                lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
+                let allSongs = (try? modelContext.fetch(FetchDescriptor<Song>())) ?? []
+                if let song = allSongs.first(where: { $0.id == lesson.songID }) {
+                    let recommended = await ExerciseRecommendationService()
+                        .recommendAsync(transcript: transcript, song: song, allExercises: allExercises)
+                    lesson.recommendedExercises = recommended
+                }
+                print("[SingCoach] LessonDetailSheet: refreshed transcript (\(transcript.split(separator: " ").count) words)")
+            case .failure(let error):
+                lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
+                print("[SingCoach] LessonDetailSheet: refresh failed: \(error)")
+            }
+            try? modelContext.save()
+            isRetranscribing = false
         }
     }
 
