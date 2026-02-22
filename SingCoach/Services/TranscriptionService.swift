@@ -31,6 +31,13 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
             return .failure(TranscriptionError.recognizerUnavailable)
         }
 
+        // Guard: audio file must exist before handing to SFSpeechURLRecognitionRequest
+        // (passing a missing-file URL causes a hard crash, not a graceful error)
+        guard FileManager.default.fileExists(atPath: audioFileURL.path) else {
+            print("[SingCoach] Transcription: audio file missing at \(audioFileURL.path)")
+            return .failure(TranscriptionError.audioFileMissing)
+        }
+
         isTranscribing = true
         defer { isTranscribing = false }
 
@@ -40,15 +47,32 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
         request.shouldReportPartialResults = false
         request.addsPunctuation = true
         request.taskHint = .dictation
-        // Bug 1 fix: removed requiresOnDeviceRecognition = true (which limits to ~60s)
+        // Lesson 27: removed requiresOnDeviceRecognition = true (limits to ~60s)
         // Using network transcription for full-length recordings
 
+        // Run recognition task. SFSpeechRecognizer is @MainActor-bound (non-Sendable) so we
+        // call recognitionTask directly on @MainActor using withCheckedContinuation.
+        // The callback fires on a private SFSpeech background queue but continuation.resume
+        // is thread-safe regardless of which thread calls it.
         return await withCheckedContinuation { continuation in
             var didResume = false
+
+            // Safety timeout: prevents a hung continuation if the recognizer goes silent
+            // (neither result nor error). Allow up to 5 minutes for long recordings.
+            let timeoutWork = DispatchWorkItem {
+                if !didResume {
+                    didResume = true
+                    print("[SingCoach] Transcription: 5-minute timeout reached, aborting")
+                    continuation.resume(returning: .failure(TranscriptionError.timeout))
+                }
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 300, execute: timeoutWork)
+
             recognizer.recognitionTask(with: request) { result, error in
                 if let result, result.isFinal {
                     if !didResume {
                         didResume = true
+                        timeoutWork.cancel()
                         let transcript = result.bestTranscription.formattedString
                         print("[SingCoach] Transcription done: \(transcript.split(separator: " ").count) words")
                         continuation.resume(returning: .success(transcript))
@@ -57,6 +81,7 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
                 if let error {
                     if !didResume {
                         didResume = true
+                        timeoutWork.cancel()
                         print("[SingCoach] Transcription failed: \(error)")
                         continuation.resume(returning: .failure(error))
                     }
@@ -69,6 +94,8 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
 enum TranscriptionError: LocalizedError {
     case recognizerUnavailable
     case permissionDenied
+    case audioFileMissing
+    case timeout
 
     var errorDescription: String? {
         switch self {
@@ -76,6 +103,10 @@ enum TranscriptionError: LocalizedError {
             return "Speech recognizer is not available on this device."
         case .permissionDenied:
             return "Speech recognition permission was denied."
+        case .audioFileMissing:
+            return "The audio recording file could not be found."
+        case .timeout:
+            return "Speech recognition timed out."
         }
     }
 }

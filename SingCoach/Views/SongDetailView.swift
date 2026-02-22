@@ -901,6 +901,20 @@ struct LessonsSection: View {
             try? modelContext.save()
 
             let service = TranscriptionService()
+
+            // Ensure permission is granted before starting (Lesson 21: delay avoids silent failure)
+            let granted = await service.requestPermission()
+            guard granted else {
+                lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
+                try? modelContext.save()
+                retranscribingID = nil
+                print("[SingCoach] Re-transcribe: speech permission denied")
+                return
+            }
+
+            // Small delay after permission dialog to let any UI settle (Lesson 21)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+
             let result = await service.transcribe(audioFileURL: audioURL)
             switch result {
             case .success(let transcript):

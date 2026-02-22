@@ -83,6 +83,10 @@ final class RecordingViewModel: ObservableObject {
             return
         }
 
+        // Lesson 21: delay before requesting speech permission — avoids silent dialog failure
+        // if called too close to a UI sheet dismiss or recorder stop event.
+        try? await Task.sleep(nanoseconds: 600_000_000)
+
         // Ensure speech permission before transcribing (silent failure if not granted)
         let permissionGranted = await transcriptionService.requestPermission()
         guard permissionGranted else {
@@ -98,7 +102,11 @@ final class RecordingViewModel: ObservableObject {
         try? modelContext.save()
         transcriptionStatus = .processing
 
-        let result = await transcriptionService.transcribe(audioFileURL: fileURL)
+        // Use the resolved URL from the stored relative path (Lesson 32: absolute paths can
+        // change across reinstalls; currentFileURL is the recording-time absolute URL but
+        // AudioPathResolver is the safe canonical resolver).
+        let resolvedAudioURL = AudioPathResolver.resolvedURL(storedPath)
+        let result = await transcriptionService.transcribe(audioFileURL: resolvedAudioURL)
         switch result {
         case .success(let transcript):
             lesson.transcript = transcript

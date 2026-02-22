@@ -110,41 +110,76 @@ EOF
     # SingCoach Internal Testers group ID: 7b26e051-1109-4403-b4a3-86873cbf970e
     INTERNAL_GROUP_ID = "7b26e051-1109-4403-b4a3-86873cbf970e"
     APP_ID = "6759441600"
-    UI.message("Waiting for ASC to finish processing build #{next_build}...")
-    sleep(90) # Give ASC time to process
+    # Poll until VALID (up to 15 minutes). 422 = still PROCESSING, so we MUST wait.
+    UI.message("Waiting for ASC to finish processing build #{next_build} (polling up to 15 min)...")
     sh %Q{
       python3 - << 'PYEOF'
 import jwt, time, urllib.request, json, sys, os
 
-key = open(os.path.expanduser("~/.openclaw/secrets/app-store-connect/AuthKey_7UKLD4C2CC.p8")).read()
-payload = {"iss": "69a6de70-79a7-47e3-e053-5b8c7c11a4d1", "iat": int(time.time()), "exp": int(time.time()) + 1200, "aud": "appstoreconnect-v1"}
-token = jwt.encode(payload, key, algorithm="ES256", headers={"kid": "7UKLD4C2CC"})
-headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+def make_token():
+    key = open(os.path.expanduser("~/.openclaw/secrets/app-store-connect/AuthKey_7UKLD4C2CC.p8")).read()
+    payload = {"iss": "69a6de70-79a7-47e3-e053-5b8c7c11a4d1", "iat": int(time.time()), "exp": int(time.time()) + 1200, "aud": "appstoreconnect-v1"}
+    return jwt.encode(payload, key, algorithm="ES256", headers={"kid": "7UKLD4C2CC"})
 
-# Find build ID for build #{next_build}
-url = "https://api.appstoreconnect.apple.com/v1/apps/#{APP_ID}/builds?limit=20&fields[builds]=version,processingState"
-req = urllib.request.Request(url, headers=headers)
-builds = json.loads(urllib.request.urlopen(req).read())["data"]
-build_id = next((b["id"] for b in builds if b["attributes"]["version"] == "#{next_build}"), None)
+def headers():
+    return {"Authorization": f"Bearer {make_token()}", "Content-Type": "application/json"}
+
+APP_ID = "6759441600"
+GROUP_ID = "7b26e051-1109-4403-b4a3-86873cbf970e"
+BUILD_VERSION = "#{next_build}"
+
+# Poll until the build appears AND is VALID (not PROCESSING / INVALID)
+build_id = None
+for attempt in range(90):  # 90 x 10s = 15 minutes max
+    url = f"https://api.appstoreconnect.apple.com/v1/apps/{APP_ID}/builds?limit=20&fields[builds]=version,processingState"
+    req = urllib.request.Request(url, headers=headers())
+    builds = json.loads(urllib.request.urlopen(req).read())["data"]
+    match = next((b for b in builds if b["attributes"]["version"] == BUILD_VERSION), None)
+    if match:
+        state = match["attributes"]["processingState"]
+        print(f"[{attempt+1}/90] Build {BUILD_VERSION}: {state}")
+        if state == "VALID":
+            build_id = match["id"]
+            break
+        elif state == "INVALID":
+            print(f"ERROR: Build {BUILD_VERSION} is INVALID in ASC — cannot distribute", file=sys.stderr)
+            sys.exit(1)
+    else:
+        print(f"[{attempt+1}/90] Build {BUILD_VERSION} not yet visible in ASC...")
+    time.sleep(10)
 
 if not build_id:
-    print("ERROR: Could not find build #{next_build} in ASC!", file=sys.stderr)
+    print(f"ERROR: Build {BUILD_VERSION} never reached VALID after 15 minutes", file=sys.stderr)
     sys.exit(1)
 
-print(f"Found Build #{next_build}: {build_id}")
+print(f"✅ Build {BUILD_VERSION} is VALID: {build_id}")
 
-# Add to Internal Testers group via ASC API
+# Add to Internal Testers group
 payload_data = json.dumps({"data": [{"type": "builds", "id": build_id}]}).encode()
 req = urllib.request.Request(
-    "https://api.appstoreconnect.apple.com/v1/betaGroups/#{INTERNAL_GROUP_ID}/relationships/builds",
-    data=payload_data, headers=headers, method="POST"
+    f"https://api.appstoreconnect.apple.com/v1/betaGroups/{GROUP_ID}/relationships/builds",
+    data=payload_data, headers=headers(), method="POST"
 )
 try:
     urllib.request.urlopen(req)
-    print("✅ Build #{next_build} successfully added to Internal Testers group")
-except Exception as e:
-    print(f"ERROR adding to beta group: {e}", file=sys.stderr)
-    sys.exit(1)
+    print(f"✅ Build {BUILD_VERSION} added to Internal Testers — testers will be notified")
+except urllib.error.HTTPError as e:
+    body = e.read().decode()
+    # 409 = already in group (fine), anything else = real error
+    if e.code == 409:
+        print(f"ℹ️  Build {BUILD_VERSION} was already in the Internal Testers group")
+    else:
+        print(f"ERROR {e.code} adding to beta group: {body}", file=sys.stderr)
+        sys.exit(1)
+
+# Verify
+time.sleep(3)
+url2 = f"https://api.appstoreconnect.apple.com/v1/betaGroups/{GROUP_ID}/builds?limit=5&fields[builds]=version,processingState"
+req2 = urllib.request.Request(url2, headers=headers())
+result = json.loads(urllib.request.urlopen(req2).read())
+print("Builds now in Internal Testers group:")
+for b in result["data"][:5]:
+    print(f"  Build {b['attributes']['version']} — {b['attributes']['processingState']}")
 PYEOF
     }
 
