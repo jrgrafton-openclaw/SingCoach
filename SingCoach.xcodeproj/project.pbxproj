@@ -394,7 +394,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.jrgrafton.singcoach;
-				PROVISIONING_PROFILE = "3ffe5aae-3ec6-4c4f-9ef9-aecf006327e0";
+				PROVISIONING_PROFILE = "ee307bf7-bde0-40b9-81ce-e043e0ec4f4f";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -475,7 +475,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.jrgrafton.singcoach;
-				PROVISIONING_PROFILE = "3ffe5aae-3ec6-4c4f-9ef9-aecf006327e0";
+				PROVISIONING_PROFILE = "ee307bf7-bde0-40b9-81ce-e043e0ec4f4f";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -562,7 +562,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.jrgrafton.singcoach;
-				PROVISIONING_PROFILE = "3ffe5aae-3ec6-4c4f-9ef9-aecf006327e0";
+				PROVISIONING_PROFILE = "ee307bf7-bde0-40b9-81ce-e043e0ec4f4f";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
@@ -584,7 +584,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.jrgrafton.singcoach;
-				PROVISIONING_PROFILE = "3ffe5aae-3ec6-4c4f-9ef9-aecf006327e0";
+				PROVISIONING_PROFILE = "ee307bf7-bde0-40b9-81ce-e043e0ec4f4f";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
