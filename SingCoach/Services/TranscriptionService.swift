@@ -16,7 +16,22 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
         return r
     }()
 
-    func requestPermission() async -> Bool {
+    // IMPORTANT: nonisolated is required here.
+    //
+    // TranscriptionService is @MainActor, which makes every method @MainActor-isolated by
+    // default. That means the closure passed to SFSpeechRecognizer.requestAuthorization would
+    // also be @MainActor-isolated. However, the OS delivers the requestAuthorization callback
+    // on a *background* thread via TCC/XPC — NOT the main thread.
+    //
+    // On iOS 26 the Swift 6 concurrency runtime enforces actor isolation with a hard
+    // dispatch_assert_queue check (_swift_task_checkIsolatedSwift). When the TCC callback
+    // arrives on a background thread and tries to execute the @MainActor-isolated closure,
+    // that assertion fires → EXC_BREAKPOINT / SIGTRAP crash.
+    //
+    // Marking this function nonisolated removes the @MainActor isolation from the closure
+    // body. CheckedContinuation.resume() is thread-safe and needs no actor isolation, so
+    // this is safe. This function deliberately accesses no @MainActor state.
+    nonisolated func requestPermission() async -> Bool {
         let status = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: status)

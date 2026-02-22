@@ -321,6 +321,52 @@ final class MusicKitAuthorizationTests: XCTestCase {
     }
 }
 
+// MARK: - TranscriptionService Threading Tests
+
+/// Regression tests for the iOS 26 / Swift 6 actor isolation crash in requestPermission().
+///
+/// Root cause: TranscriptionService is @MainActor, which made the
+/// SFSpeechRecognizer.requestAuthorization callback @MainActor-isolated. On iOS 26
+/// the Swift 6 runtime enforces this with a hard dispatch_assert_queue call
+/// (_swift_task_checkIsolatedSwift). Since the OS delivers the TCC/XPC callback
+/// on a background thread, the assertion fired → EXC_BREAKPOINT crash.
+///
+/// Fix: requestPermission() is marked nonisolated — its closure is no longer
+/// @MainActor-isolated and can be safely called from any thread.
+@MainActor
+final class TranscriptionPermissionTests: XCTestCase {
+
+    /// Verifies requestPermission() completes without crashing when called from
+    /// a @MainActor context (the normal app call-site).
+    ///
+    /// In the test runner, SFSpeechRecognizer.requestAuthorization calls back with
+    /// .denied on a background thread (no microphone available in sim/unit test
+    /// environment). Before the fix this path would crash on iOS 26 because the
+    /// @MainActor-isolated closure was called from that background thread.
+    func testRequestPermissionDoesNotCrashWhenCalledFromMainActor() async {
+        let service = TranscriptionService()
+        // Should return false (denied in test env) but must NOT crash.
+        // If this test completes at all, the threading fix is working.
+        let result = await service.requestPermission()
+        // In a unit test environment permission will always be denied/restricted.
+        XCTAssertFalse(result, "Permission should be denied in unit test environment")
+    }
+
+    /// Verifies requestPermission() is safe to call from a detached (non-main-actor)
+    /// task — simulating the TCC callback arriving on a background thread.
+    ///
+    /// Before the fix this would crash; after the fix it returns cleanly because
+    /// nonisolated functions don't carry @MainActor isolation into their closures.
+    func testRequestPermissionIsCallableFromDetachedTask() async {
+        let service = TranscriptionService()
+        let result = await Task.detached {
+            await service.requestPermission()
+        }.value
+        // Value is false in test env; we only care that it didn't crash.
+        XCTAssertFalse(result, "Permission should be denied in unit test environment")
+    }
+}
+
 // MARK: - Analytics Mock Tests
 @MainActor
 final class MockAnalyticsTracker: AnalyticsTracking {
