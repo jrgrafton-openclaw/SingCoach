@@ -131,6 +131,10 @@ struct RecordFAB: View {
     @State private var longPressProgress: CGFloat = 0   // 0 → 1 during hold
     @State private var longPressTimer: Timer?
     private let longPressThreshold: CGFloat = 0.4       // seconds to trigger performance
+    /// When the long-press threshold fires and starts a performance recording, the finger is
+    /// still physically down. The very next DragGesture.onEnded must NOT stop the recording —
+    /// it's just the user releasing after the hold. This flag absorbs that one release.
+    @State private var ignoreNextRelease: Bool = false
 
     // FAB animation
     @State private var fabScale: CGFloat = 1.0
@@ -207,7 +211,13 @@ struct RecordFAB: View {
                         }
                         .onEnded { _ in
                             if isRecording {
-                                stopRecording()
+                                if ignoreNextRelease {
+                                    // Long-press just started performance recording — finger lifted
+                                    // naturally after hold. Don't stop; just absorb this release.
+                                    ignoreNextRelease = false
+                                } else {
+                                    stopRecording()
+                                }
                             } else if isLongPressing {
                                 // Released before threshold → tap = Lesson
                                 let wasQuickTap = longPressProgress < 1.0
@@ -287,6 +297,8 @@ struct RecordFAB: View {
                     gen.impactOccurred()
                     isLongPressing = false
                     longPressProgress = 0
+                    // Finger is still physically down; absorb the imminent onEnded release
+                    ignoreNextRelease = true
                     startRecording(type: "performance")
                 }
             }
@@ -329,6 +341,9 @@ struct HeaderRecordButton: View {
     @State private var longPressProgress: CGFloat = 0
     @State private var longPressTimer: Timer?
     private let longPressThreshold: CGFloat = 0.4
+    /// Absorbs the DragGesture.onEnded that fires immediately after a long-press-triggered
+    /// performance recording starts (finger is still down when recording begins).
+    @State private var ignoreNextRelease: Bool = false
 
     @State private var buttonScale: CGFloat = 1.0
     @State private var breathScale: CGFloat = 1.0
@@ -411,7 +426,11 @@ struct HeaderRecordButton: View {
                     }
                     .onEnded { _ in
                         if isRecording {
-                            stopRecording()
+                            if ignoreNextRelease {
+                                ignoreNextRelease = false
+                            } else {
+                                stopRecording()
+                            }
                         } else if isLongPressing {
                             let wasQuickTap = longPressProgress < 1.0
                             cancelLongPress()
@@ -463,6 +482,7 @@ struct HeaderRecordButton: View {
                     longPressTimer?.invalidate(); longPressTimer = nil
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     isLongPressing = false; longPressProgress = 0
+                    ignoreNextRelease = true
                     startRecording(type: "performance")
                 }
             }
