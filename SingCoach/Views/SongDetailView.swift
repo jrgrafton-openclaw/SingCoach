@@ -1082,6 +1082,7 @@ struct LessonDetailSheet: View {
     @State private var showLoadError = false
     // Refresh transcript
     @State private var isRetranscribing = false
+    @StateObject private var transcriptionService = TranscriptionService()
 
     let speeds: [Float] = [0.75, 1.0, 1.25, 1.5]
 
@@ -1220,7 +1221,9 @@ struct LessonDetailSheet: View {
                                     if isRetranscribing {
                                         HStack(spacing: 6) {
                                             ProgressView().scaleEffect(0.7)
-                                            Text("Transcribing…")
+                                            Text(transcriptionService.chunkProgress.isEmpty
+                                                 ? "Transcribing…"
+                                                 : "Transcribing… \(transcriptionService.chunkProgress)")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(SingCoachTheme.textSecondary)
                                         }
@@ -1309,8 +1312,7 @@ struct LessonDetailSheet: View {
             lesson.transcriptionStatus = TranscriptionStatus.processing.rawValue
             try? modelContext.save()
 
-            let service = TranscriptionService()
-            let granted = await service.requestPermission()
+            let granted = await transcriptionService.requestPermission()
             guard granted else {
                 lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
                 try? modelContext.save()
@@ -1320,7 +1322,7 @@ struct LessonDetailSheet: View {
             // Lesson 21: brief delay after permission dialog
             try? await Task.sleep(nanoseconds: 300_000_000)
 
-            let result = await service.transcribe(audioFileURL: audioURL)
+            let result = await transcriptionService.transcribe(audioFileURL: audioURL)
             switch result {
             case .success(let transcript):
                 lesson.transcript = transcript
