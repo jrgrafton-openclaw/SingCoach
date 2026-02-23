@@ -1,6 +1,39 @@
 import Foundation
 import FirebaseAI
 
+// MARK: - Text Generator Protocol
+// Abstracts the Firebase generateContent call so tests can inject a mock
+// without needing access to Firebase SDK internals.
+
+protocol AITextGenerator: Sendable {
+    /// Sends audio bytes + mime type to the model, returns the text response.
+    func generateText(audioData: Data, mimeType: String) async throws -> String
+    /// Sends a text-only prompt, returns the model's text response.
+    func generateText(prompt: String) async throws -> String
+}
+
+// Production implementation backed by a real Firebase GenerativeModel
+struct FirebaseTextGenerator: AITextGenerator {
+    let model: GenerativeModel
+
+    func generateText(audioData: Data, mimeType: String) async throws -> String {
+        let audioPart = InlineDataPart(data: audioData, mimeType: mimeType)
+        let response = try await model.generateContent(audioPart)
+        guard let text = response.text else {
+            throw URLError(.badServerResponse)
+        }
+        return text
+    }
+
+    func generateText(prompt: String) async throws -> String {
+        let response = try await model.generateContent(prompt)
+        guard let text = response.text else {
+            throw URLError(.badServerResponse)
+        }
+        return text
+    }
+}
+
 // MARK: - Result Types
 
 struct AIKeyMoment: Codable {
@@ -48,8 +81,44 @@ enum GeminiAnalysisError: LocalizedError {
 
 final class GeminiAnalysisService {
 
-    private let ai = FirebaseAI.firebaseAI(backend: .vertexAI())
     private let maxFileSizeBytes = 19 * 1024 * 1024 // 19 MB safety margin
+
+    // Overrideable for testing; nil = use real Firebase models
+    private let flashGenerator: AITextGenerator?
+    private let proGenerator: AITextGenerator?
+
+    /// Production init — uses real Firebase Vertex AI models.
+    init() {
+        self.flashGenerator = nil
+        self.proGenerator = nil
+    }
+
+    /// Test init — inject mock generators to avoid real Firebase HTTP calls.
+    init(flashGenerator: any AITextGenerator, proGenerator: any AITextGenerator) {
+        self.flashGenerator = flashGenerator
+        self.proGenerator = proGenerator
+    }
+
+    private func makeFlashGenerator() -> any AITextGenerator {
+        if let g = flashGenerator { return g }
+        let ai = FirebaseAI.firebaseAI(backend: .vertexAI())
+        return FirebaseTextGenerator(model: ai.generativeModel(
+            modelName: "gemini-2.0-flash",
+            systemInstruction: ModelContent(role: "system", parts: transcriptionSystemPrompt)
+        ))
+    }
+
+    private func makeProGenerator(isPerformance: Bool) -> any AITextGenerator {
+        if let g = proGenerator { return g }
+        let ai = FirebaseAI.firebaseAI(backend: .vertexAI())
+        return FirebaseTextGenerator(model: ai.generativeModel(
+            modelName: "gemini-3.1-pro-preview",
+            systemInstruction: ModelContent(
+                role: "system",
+                parts: isPerformance ? performanceSystemPrompt : lessonSystemPrompt
+            )
+        ))
+    }
 
     // MARK: - Public API
 
@@ -110,25 +179,19 @@ final class GeminiAnalysisService {
     // MARK: - Step 1: Transcription
 
     private func transcribe(audioData: Data, mimeType: String) async throws -> String {
-        let model = ai.generativeModel(
-            modelName: "gemini-2.0-flash",
-            systemInstruction: ModelContent(role: "system", parts: transcriptionSystemPrompt)
-        )
+        let generator = makeFlashGenerator()
 
-        let audioPart = InlineDataPart(data: audioData, mimeType: mimeType)
-
-        let response: GenerateContentResponse
         do {
-            response = try await model.generateContent(audioPart)
+            let text = try await generator.generateText(audioData: audioData, mimeType: mimeType)
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw GeminiAnalysisError.transcriptionFailed("Model returned empty transcript")
+            }
+            return text
+        } catch let e as GeminiAnalysisError {
+            throw e
         } catch {
             throw GeminiAnalysisError.transcriptionFailed(error.localizedDescription)
         }
-
-        guard let text = response.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw GeminiAnalysisError.transcriptionFailed("Model returned empty transcript")
-        }
-
-        return text
     }
 
     // MARK: - Step 2: Analysis
@@ -139,13 +202,7 @@ final class GeminiAnalysisService {
         allExercises: [Exercise]
     ) async throws -> AIAnalysisResult {
 
-        let model = ai.generativeModel(
-            modelName: "gemini-3.1-pro-preview",
-            systemInstruction: ModelContent(
-                role: "system",
-                parts: isPerformance ? performanceSystemPrompt : lessonSystemPrompt
-            )
-        )
+        let generator = makeProGenerator(isPerformance: isPerformance)
 
         let exerciseList = allExercises.isEmpty
             ? "(no exercises in library yet)"
@@ -165,18 +222,14 @@ final class GeminiAnalysisService {
         Respond with ONLY the JSON object. No markdown fences, no explanation.
         """
 
-        let response: GenerateContentResponse
+        let raw: String
         do {
-            response = try await model.generateContent(userPrompt)
+            raw = try await generator.generateText(prompt: userPrompt)
         } catch {
             throw GeminiAnalysisError.analysisFailed(error.localizedDescription)
         }
 
-        guard let text = response.text else {
-            throw GeminiAnalysisError.analysisFailed("Model returned empty response")
-        }
-
-        let cleaned = stripCodeFences(text)
+        let cleaned = stripCodeFences(raw)
 
         guard let data = cleaned.data(using: .utf8) else {
             throw GeminiAnalysisError.invalidResponse("Could not encode response as UTF-8")
