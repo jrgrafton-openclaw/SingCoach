@@ -1245,10 +1245,7 @@ struct LessonDetailSheet: View {
                                 }
 
                                 if let transcript = lesson.transcript, !transcript.isEmpty {
-                                    Text(transcript)
-                                        .font(.system(size: 15))
-                                        .foregroundColor(SingCoachTheme.textSecondary)
-                                        .lineSpacing(6)
+                                    TranscriptView(transcript: transcript)
                                 } else {
                                     Text(lesson.status == .processing
                                          ? "Transcribing recording…"
@@ -1741,5 +1738,84 @@ struct ExerciseLibrarySheet: View {
         modelContext.insert(copy)
         song.exercises.append(copy)
         try? modelContext.save()
+    }
+}
+
+// MARK: - Transcript View
+
+/// Renders a lesson transcript with optional timestamp markers and paragraph breaks.
+///
+/// Handles two formats:
+///   New (chunked):  "[0:00]\ntext...\n\n[0:55]\ntext..." — paragraphs with timestamp badges
+///   Legacy (flat):  "plain text without markers"         — single paragraph, no badges
+///
+/// The max-height ScrollView keeps the card compact on short displays while
+/// still exposing the full transcript for long recordings.
+struct TranscriptView: View {
+
+    let transcript: String
+
+    struct Segment: Identifiable {
+        let id = UUID()
+        let timestamp: String?   // e.g. "0:00", nil for legacy flat transcripts
+        let text: String
+    }
+
+    /// Parse transcript into segments, splitting on double-newlines.
+    /// Recognises lines of the form "[M:SS]" or "[MM:SS]" as timestamp markers.
+    var segments: [Segment] {
+        let blocks = transcript
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        return blocks.map { block in
+            let lines = block.components(separatedBy: "\n")
+            if let firstLine = lines.first,
+               firstLine.hasPrefix("["), firstLine.hasSuffix("]") {
+                let inner = String(firstLine.dropFirst().dropLast())
+                let parts = inner.components(separatedBy: ":")
+                if parts.count == 2,
+                   parts[0].allSatisfy(\.isNumber),
+                   parts[1].count == 2,
+                   parts[1].allSatisfy(\.isNumber) {
+                    let body = lines.dropFirst()
+                        .joined(separator: "\n")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    return Segment(timestamp: inner, text: body)
+                }
+            }
+            return Segment(timestamp: nil, text: block)
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(segments) { seg in
+                    VStack(alignment: .leading, spacing: 5) {
+                        if let ts = seg.timestamp {
+                            Text(ts)
+                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                .foregroundColor(SingCoachTheme.accent)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(SingCoachTheme.accent.opacity(0.15))
+                                .cornerRadius(5)
+                        }
+                        if !seg.text.isEmpty {
+                            Text(seg.text)
+                                .font(.system(size: 15))
+                                .foregroundColor(SingCoachTheme.textSecondary)
+                                .lineSpacing(5)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 2)
+        }
+        .frame(maxHeight: 280)
     }
 }

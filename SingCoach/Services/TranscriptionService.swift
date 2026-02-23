@@ -167,7 +167,7 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
         let totalFrames = audioFile.length
         let totalChunks = Int(ceil(Double(totalFrames) / Double(framesPerChunk)))
 
-        var parts: [String] = []
+        var parts: [(offset: Double, text: String)] = []
         var chunkIndex = 0
         var startFrame: AVAudioFramePosition = 0
 
@@ -175,6 +175,9 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
             let remaining = AVAudioFrameCount(totalFrames - startFrame)
             let framesToRead = min(framesPerChunk, remaining)
             chunkIndex += 1
+
+            // Capture offset BEFORE advancing startFrame — this is the timestamp for this chunk
+            let chunkOffsetSeconds = Double(startFrame) / sampleRate
 
             guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: framesToRead) else {
                 print("[SingCoach] Transcription chunk \(chunkIndex)/\(totalChunks): could not allocate buffer, skipping")
@@ -191,15 +194,15 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
                 continue
             }
 
-            let chunkStart = String(format: "%.0f", Double(startFrame) / sampleRate)
             chunkProgress = "Chunk \(chunkIndex) / \(totalChunks)"
-            print("[SingCoach] Transcription chunk \(chunkIndex)/\(totalChunks): recognizing (\(chunkStart)s…)")
+            print("[SingCoach] Transcription chunk \(chunkIndex)/\(totalChunks): recognizing (\(Int(chunkOffsetSeconds))s…)")
 
             let chunkResult = await transcribeBuffer(buffer: buffer, recognizer: recognizer, chunkLabel: "\(chunkIndex)/\(totalChunks)")
             switch chunkResult {
             case .success(let text):
-                if !text.isEmpty {
-                    parts.append(text)
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    parts.append((offset: chunkOffsetSeconds, text: trimmed))
                 }
             case .failure(let error):
                 // A single chunk failure is not fatal — log and continue
@@ -216,13 +219,24 @@ final class TranscriptionService: ObservableObject, TranscriptionProtocol {
         }
 
         chunkProgress = ""
-        let fullTranscript = parts.joined(separator: " ")
-        if fullTranscript.isEmpty {
+
+        if parts.isEmpty {
             print("[SingCoach] Transcription (chunked): all chunks failed — no transcript")
             return .failure(TranscriptionError.timeout)
         }
 
-        print("[SingCoach] Transcription (chunked) done: \(parts.count)/\(totalChunks) chunks, \(fullTranscript.split(separator: " ").count) total words")
+        // Build timestamped transcript: "[M:SS]\ntext\n\n[M:SS]\ntext…"
+        // The UI parses [M:SS] markers to render paragraph headers.
+        // Short recordings (URL path) don't have markers — the UI handles both gracefully.
+        let formattedParts = parts.map { seg -> String in
+            let mins = Int(seg.offset) / 60
+            let secs = Int(seg.offset) % 60
+            return String(format: "[%d:%02d]\n%@", mins, secs, seg.text)
+        }
+        let fullTranscript = formattedParts.joined(separator: "\n\n")
+
+        let wordCount = fullTranscript.split(separator: " ").count
+        print("[SingCoach] Transcription (chunked) done: \(parts.count)/\(totalChunks) chunks, \(wordCount) total words")
         return .success(fullTranscript)
     }
 
