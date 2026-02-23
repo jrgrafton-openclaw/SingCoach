@@ -836,7 +836,7 @@ struct LessonsSection: View {
                     // List required for swipeActions to work (VStack/ScrollView doesn't support them)
                     List {
                         ForEach(lessons) { lesson in
-                            LessonRowView(lesson: lesson)
+                            LessonRowView(lesson: lesson, songTitle: song.title)
                                 .listRowBackground(SingCoachTheme.surface)
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
@@ -882,7 +882,7 @@ struct LessonsSection: View {
 
                     List {
                         ForEach(performances) { lesson in
-                            LessonRowView(lesson: lesson)
+                            LessonRowView(lesson: lesson, songTitle: song.title)
                                 .listRowBackground(SingCoachTheme.surface)
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
@@ -959,6 +959,7 @@ struct LessonsSection: View {
 
 struct LessonRowView: View {
     let lesson: Lesson
+    var songTitle: String = "Recording"
     @StateObject private var player = AudioPlaybackService()
     @State private var showDetail = false
     // Bug 2 fix: seek only on drag release
@@ -1071,7 +1072,7 @@ struct LessonRowView: View {
             showDetail = true
         }
         .sheet(isPresented: $showDetail) {
-            LessonDetailSheet(lesson: lesson)
+            LessonDetailSheet(lesson: lesson, songTitle: songTitle)
         }
     }
 
@@ -1093,6 +1094,7 @@ struct LessonDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let lesson: Lesson
+    var songTitle: String = "Recording"
     @StateObject private var player = AudioPlaybackService()
     @State private var speed: Float = 1.0
     // Bug 2 fix: seek only on drag release
@@ -1221,6 +1223,19 @@ struct LessonDetailSheet: View {
                                             .foregroundColor(speed == s ? SingCoachTheme.accent : SingCoachTheme.textSecondary)
                                             .cornerRadius(8)
                                     }
+                                }
+                                Spacer()
+                                // Share / export the raw audio file (Save to Files, AirDrop, etc.)
+                                let exportURL = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+                                let exportTitle = "\(songTitle) – \(lesson.date.formatted(date: .abbreviated, time: .shortened))"
+                                ShareLink(
+                                    item: exportURL,
+                                    preview: SharePreview(exportTitle, image: Image(systemName: "waveform"))
+                                ) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(SingCoachTheme.textSecondary)
+                                        .padding(6)
                                 }
                             }
 
