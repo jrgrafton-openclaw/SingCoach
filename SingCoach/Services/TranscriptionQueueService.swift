@@ -38,6 +38,18 @@ final class TranscriptionQueueService: ObservableObject {
             return
         }
 
+        // Heal any performances that are stuck as .pending (saved before the fix that sets
+        // performances to .done immediately). Reset them to .done so they stop showing "Queued".
+        var healedCount = 0
+        for lesson in allLessons where lesson.isPerformance && lesson.status == .pending {
+            lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
+            healedCount += 1
+        }
+        if healedCount > 0 {
+            print("[SingCoach] TranscriptionQueue: healed \(healedCount) performance(s) stuck in pending")
+            try? context.save()
+        }
+
         let stuck = allLessons.filter { lesson in
             guard !lesson.isPerformance else { return false }
             let status = lesson.status

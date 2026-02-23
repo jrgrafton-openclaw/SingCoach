@@ -1223,6 +1223,33 @@ struct LessonDetailSheet: View {
                                     }
                                 }
                             }
+
+                            // Transcribe button — visible for all recordings
+                            Divider().background(SingCoachTheme.textSecondary.opacity(0.2))
+                            Button { refreshTranscript() } label: {
+                                if isRetranscribing {
+                                    HStack(spacing: 6) {
+                                        ProgressView().scaleEffect(0.8)
+                                        Text(transcriptionService.chunkProgress.isEmpty
+                                             ? "Transcribing…"
+                                             : transcriptionService.chunkProgress)
+                                            .font(.system(size: 14))
+                                            .foregroundColor(SingCoachTheme.textSecondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                } else {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "waveform.badge.magnifyingglass")
+                                            .font(.system(size: 14))
+                                        Text(lesson.transcript?.isEmpty == false ? "Re-transcribe" : "Transcribe")
+                                            .font(.system(size: 14, weight: .medium))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .foregroundColor(SingCoachTheme.accent)
+                                }
+                            }
+                            .disabled(isRetranscribing)
+                            .padding(.top, 2)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 16)
@@ -1230,50 +1257,13 @@ struct LessonDetailSheet: View {
                         .cornerRadius(16)
                         .padding(.horizontal, 16)
 
-                        // Transcript card — always visible for non-performance lessons
-                        if !lesson.isPerformance {
+                        // Transcript card — visible for any recording that has a transcript
+                        if let transcript = lesson.transcript, !transcript.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
-                                HStack {
-                                    Text("Transcript")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(SingCoachTheme.accent)
-                                    Spacer()
-                                    if isRetranscribing {
-                                        HStack(spacing: 6) {
-                                            ProgressView().scaleEffect(0.7)
-                                            Text(transcriptionService.chunkProgress.isEmpty
-                                                 ? "Transcribing…"
-                                                 : "Transcribing… \(transcriptionService.chunkProgress)")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(SingCoachTheme.textSecondary)
-                                        }
-                                    } else {
-                                        Button { refreshTranscript() } label: {
-                                            HStack(spacing: 4) {
-                                                Image(systemName: "arrow.clockwise")
-                                                    .font(.system(size: 11, weight: .semibold))
-                                                Text("Refresh")
-                                                    .font(.system(size: 12, weight: .semibold))
-                                            }
-                                            .foregroundColor(SingCoachTheme.accent)
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 5)
-                                            .background(SingCoachTheme.accent.opacity(0.15))
-                                            .cornerRadius(8)
-                                        }
-                                    }
-                                }
-
-                                if let transcript = lesson.transcript, !transcript.isEmpty {
-                                    TranscriptView(transcript: transcript)
-                                } else {
-                                    Text(lesson.status == .processing
-                                         ? "Transcribing recording…"
-                                         : "No transcript yet — tap Refresh to transcribe.")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(SingCoachTheme.textSecondary.opacity(0.6))
-                                        .italic()
-                                }
+                                Text("Transcript")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(SingCoachTheme.accent)
+                                TranscriptView(transcript: transcript)
                             }
                             .padding(16)
                             .background(SingCoachTheme.surface)
@@ -1321,7 +1311,7 @@ struct LessonDetailSheet: View {
     }
 
     func refreshTranscript() {
-        guard !isRetranscribing, !lesson.isPerformance else { return }
+        guard !isRetranscribing else { return }
         isRetranscribing = true
         let audioURL = AudioPathResolver.resolvedURL(lesson.audioFileURL)
         let allExercises = (try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? []

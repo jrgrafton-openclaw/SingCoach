@@ -77,8 +77,12 @@ final class RecordingViewModel: ObservableObject {
         AnalyticsService.shared.lessonRecorded(durationSeconds: duration)
         print("[SingCoach] Lesson saved (type=\(currentRecordingType)), starting transcription")
 
-        // Skip transcription for performances
+        // Skip automatic transcription for performances, but mark as done
+        // (not pending/queued) so they don't appear stuck in the UI.
+        // The user can still manually request transcription via the Refresh button.
         guard currentRecordingType != "performance" else {
+            lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
+            try? modelContext.save()
             showRecordingSheet = false
             return
         }
