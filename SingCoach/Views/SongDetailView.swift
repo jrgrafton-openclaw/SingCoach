@@ -995,16 +995,6 @@ struct LessonRowView: View {
                                 .cornerRadius(4)
                         }
 
-                        if lesson.isPerformance {
-                            Text("🎤 Performance")
-                                .font(.system(size: 11))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color(hex: "#8B5CF6").opacity(0.2))
-                                .foregroundColor(Color(hex: "#8B5CF6"))
-                                .cornerRadius(4)
-                        }
-
                         if showLoadError {
                             Text("File not found")
                                 .font(.system(size: 11))
@@ -1088,6 +1078,61 @@ struct LessonRowView: View {
     }
 }
 
+// MARK: - Custom Slider (small circular thumb)
+
+struct CustomSlider: UIViewRepresentable {
+    @Binding var value: Double
+    var range: ClosedRange<Double>
+    var onEditingChanged: (Bool) -> Void
+
+    func makeUIView(context: Context) -> UISlider {
+        let slider = UISlider()
+        slider.minimumTrackTintColor = UIColor(SingCoachTheme.accent)
+        slider.maximumTrackTintColor = UIColor.white.withAlphaComponent(0.15)
+        // Draw a small solid white circle as thumb
+        let size: CGFloat = 14
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        let thumb = renderer.image { ctx in
+            ctx.cgContext.setFillColor(UIColor.white.cgColor)
+            ctx.cgContext.fillEllipse(in: CGRect(origin: .zero, size: CGSize(width: size, height: size)))
+        }
+        slider.setThumbImage(thumb, for: .normal)
+        slider.setThumbImage(thumb, for: .highlighted)
+        slider.addTarget(context.coordinator, action: #selector(Coordinator.valueChanged(_:)), for: .valueChanged)
+        slider.addTarget(context.coordinator, action: #selector(Coordinator.touchDown),       for: .touchDown)
+        slider.addTarget(context.coordinator, action: #selector(Coordinator.touchUp),         for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        return slider
+    }
+
+    func updateUIView(_ uiView: UISlider, context: Context) {
+        uiView.minimumValue = Float(range.lowerBound)
+        uiView.maximumValue = Float(range.upperBound)
+        if !context.coordinator.isDragging {
+            uiView.value = Float(value)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    class Coordinator: NSObject {
+        var parent: CustomSlider
+        var isDragging = false
+        init(_ parent: CustomSlider) { self.parent = parent }
+
+        @objc func touchDown() {
+            isDragging = true
+            parent.onEditingChanged(true)
+        }
+        @objc func valueChanged(_ slider: UISlider) {
+            parent.value = Double(slider.value)
+        }
+        @objc func touchUp() {
+            isDragging = false
+            parent.onEditingChanged(false)
+        }
+    }
+}
+
 // MARK: - Lesson Detail Sheet (Bug 2: seek on release; Bug 8: guard nil player)
 
 struct LessonDetailSheet: View {
@@ -1115,28 +1160,16 @@ struct LessonDetailSheet: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 6) {
-                                Text(lesson.date, style: .date)
-                                Text("·")
-                                Text(lesson.date, style: .time)
-                            }
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(SingCoachTheme.textPrimary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            // Date · Time — compact format: "Mon, Feb 22 · 7:47 PM"
+                            Text(formattedHeaderDate(lesson.date))
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(SingCoachTheme.textPrimary)
 
+                            // Duration as subtitle
                             Text(formatDuration(lesson.durationSeconds))
-                                .font(.system(size: 15))
+                                .font(.system(size: 13))
                                 .foregroundColor(SingCoachTheme.textSecondary)
-
-                            if lesson.isPerformance {
-                                Text("🎤 Performance")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .background(Color(hex: "#8B5CF6").opacity(0.2))
-                                    .foregroundColor(Color(hex: "#8B5CF6"))
-                                    .cornerRadius(8)
-                            }
 
                             if showLoadError {
                                 Text("⚠️ Audio file not found")
@@ -1147,17 +1180,23 @@ struct LessonDetailSheet: View {
                         .padding(.horizontal, 16)
 
                         VStack(spacing: 12) {
-                            // Bug 2 fix: seek only on drag release
-                            Slider(value: Binding(
-                                get: { isDragging ? localSeek : player.currentTime },
-                                set: { localSeek = $0; isDragging = true }
-                            ), in: 0...max(player.duration, 1), onEditingChanged: { editing in
-                                if !editing {
-                                    player.seek(to: localSeek)
-                                    isDragging = false
+                            // Custom slider — small circular thumb (Bug 2: seek on release)
+                            CustomSlider(
+                                value: Binding(
+                                    get: { isDragging ? localSeek : player.currentTime },
+                                    set: { localSeek = $0 }
+                                ),
+                                range: 0...max(player.duration, 1),
+                                onEditingChanged: { editing in
+                                    if editing {
+                                        isDragging = true
+                                    } else {
+                                        player.seek(to: localSeek)
+                                        isDragging = false
+                                    }
                                 }
-                            })
-                            .tint(SingCoachTheme.accent)
+                            )
+                            .frame(height: 28)
 
                             HStack {
                                 Text(formatDuration(isDragging ? localSeek : player.currentTime))
@@ -1167,76 +1206,80 @@ struct LessonDetailSheet: View {
                             .font(.system(size: 12))
                             .foregroundColor(SingCoachTheme.textSecondary)
 
-                            HStack(spacing: 20) {
+                            // Single transport row: [Speed] ——— [←15 ▶ 15→] ——— [Share]
+                            let exportURL = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+                            let exportTitle = "\(songTitle) – \(lesson.date.formatted(date: .abbreviated, time: .shortened))"
+                            HStack(spacing: 0) {
+                                // Speed cycle button — left anchor, equal-width column for true centering
                                 Button {
-                                    player.seek(to: max(0, player.currentTime - 15))
+                                    let idx = speeds.firstIndex(of: speed) ?? 1
+                                    speed = speeds[(idx + 1) % speeds.count]
+                                    player.playbackRate = speed
                                 } label: {
-                                    Image(systemName: "gobackward.15")
-                                        .font(.system(size: 24))
-                                        .foregroundColor(SingCoachTheme.textPrimary)
+                                    Text("\(speed, specifier: speed == 1.0 ? "%.0f" : "%.2g")x")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.white.opacity(0.08))
+                                        .foregroundColor(SingCoachTheme.textSecondary)
+                                        .cornerRadius(10)
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                                Button {
-                                    if player.isPlaying {
-                                        player.pause()
-                                    } else {
-                                        if player.duration == 0 {
-                                            // Lesson 32: resolve relative or legacy absolute path
-                                            let url = AudioPathResolver.resolvedURL(lesson.audioFileURL)
-                                            do {
-                                                try player.load(url: url)
-                                                showLoadError = false
-                                            } catch {
-                                                showLoadError = true
-                                                print("[SingCoach] LessonDetailSheet: failed to load audio: \(error)")
-                                                return
-                                            }
-                                        }
-                                        player.play()
-                                    }
-                                } label: {
-                                    Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                        .font(.system(size: 56))
-                                        .foregroundColor(SingCoachTheme.accent)
-                                }
-
-                                Button {
-                                    player.seek(to: min(player.duration, player.currentTime + 15))
-                                } label: {
-                                    Image(systemName: "goforward.15")
-                                        .font(.system(size: 24))
-                                        .foregroundColor(SingCoachTheme.textPrimary)
-                                }
-                            }
-
-                            HStack(spacing: 8) {
-                                ForEach(speeds, id: \.self) { s in
+                                // Transport controls — centered
+                                HStack(spacing: 20) {
                                     Button {
-                                        speed = s
-                                        player.playbackRate = s
+                                        player.seek(to: max(0, player.currentTime - 15))
                                     } label: {
-                                        Text("\(s, specifier: s == 1.0 ? "%.0f" : "%.2g")x")
-                                            .font(.system(size: 13, weight: speed == s ? .bold : .regular))
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(speed == s ? SingCoachTheme.accent.opacity(0.3) : SingCoachTheme.surface)
-                                            .foregroundColor(speed == s ? SingCoachTheme.accent : SingCoachTheme.textSecondary)
-                                            .cornerRadius(8)
+                                        Image(systemName: "gobackward.15")
+                                            .font(.system(size: 24))
+                                            .foregroundColor(SingCoachTheme.textPrimary)
+                                    }
+
+                                    Button {
+                                        if player.isPlaying {
+                                            player.pause()
+                                        } else {
+                                            if player.duration == 0 {
+                                                // Lesson 32: resolve relative or legacy absolute path
+                                                let url = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+                                                do {
+                                                    try player.load(url: url)
+                                                    showLoadError = false
+                                                } catch {
+                                                    showLoadError = true
+                                                    print("[SingCoach] LessonDetailSheet: failed to load audio: \(error)")
+                                                    return
+                                                }
+                                            }
+                                            player.play()
+                                        }
+                                    } label: {
+                                        Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                            .font(.system(size: 56))
+                                            .foregroundColor(SingCoachTheme.accent)
+                                    }
+
+                                    Button {
+                                        player.seek(to: min(player.duration, player.currentTime + 15))
+                                    } label: {
+                                        Image(systemName: "goforward.15")
+                                            .font(.system(size: 24))
+                                            .foregroundColor(SingCoachTheme.textPrimary)
                                     }
                                 }
-                                Spacer()
-                                // Share / export the raw audio file (Save to Files, AirDrop, etc.)
-                                let exportURL = AudioPathResolver.resolvedURL(lesson.audioFileURL)
-                                let exportTitle = "\(songTitle) – \(lesson.date.formatted(date: .abbreviated, time: .shortened))"
+
+                                // Share / export — right anchor, equal-width column for true centering
                                 ShareLink(
                                     item: exportURL,
                                     preview: SharePreview(exportTitle, image: Image(systemName: "waveform"))
                                 ) {
                                     Image(systemName: "square.and.arrow.up")
-                                        .font(.system(size: 15))
+                                        .font(.system(size: 17))
                                         .foregroundColor(SingCoachTheme.textSecondary)
                                         .padding(6)
                                 }
+                                .frame(maxWidth: .infinity, alignment: .trailing)
                             }
 
                             // Transcribe button — visible for all recordings
@@ -1303,7 +1346,7 @@ struct LessonDetailSheet: View {
                     .padding(.vertical, 20)
                 }
             }
-            .navigationTitle("Lesson Detail")
+            .navigationTitle(lesson.isPerformance ? "Performance Detail" : "Lesson Detail")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -1374,6 +1417,12 @@ struct LessonDetailSheet: View {
             return String(format: "%d:%02d:%02d", h, m, s)
         }
         return String(format: "%d:%02d", m, s)
+    }
+
+    func formattedHeaderDate(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d · h:mm a"
+        return f.string(from: date)
     }
 }
 
