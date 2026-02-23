@@ -26,6 +26,7 @@
 		65882DB07C92E34EFFF11292 /* Exercise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48756E9B0770DECBDE3B1566 /* Exercise.swift */; };
 		6F23014E19AEAC74CC5796D6 /* AudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5318980AF21279E1AF2CB499 /* AudioPlaybackService.swift */; };
 		7A3FB48D71D00A5A4F102D01 /* SingCoachTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F579B7B2AA503517C0BE14E /* SingCoachTests.swift */; };
+		3BC0C6756FDE4D5CADD98997 /* GeminiAnalysisTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD0531FD3C8444A9CE7A8CE /* GeminiAnalysisTests.swift */; };
 		7ABBF23091F8DF4646DB6F08 /* SingCoachTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F78FCB56312F8A7684DB52 /* SingCoachTheme.swift */; };
 		7C431D55FC6EAB30637F5D08 /* ExerciseSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4485C00614BD8C5DF6E2C9 /* ExerciseSeeder.swift */; };
 		832917B8358F431A96CEA9E9 /* GeminiAnalysisService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3448E3DF89A34B42B68B91AC /* GeminiAnalysisService.swift */; };
@@ -66,6 +67,7 @@
 		3448E3DF89A34B42B68B91AC /* GeminiAnalysisService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiAnalysisService.swift; sourceTree = "<group>"; };
 		34E365A76635E75C8C20EF34 /* LyricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsView.swift; sourceTree = "<group>"; };
 		3F579B7B2AA503517C0BE14E /* SingCoachTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingCoachTests.swift; sourceTree = "<group>"; };
+		3DD0531FD3C8444A9CE7A8CE /* GeminiAnalysisTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiAnalysisTests.swift; sourceTree = "<group>"; };
 		40ED05EB329038D57C43C1EC /* AudioRecordingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingService.swift; sourceTree = "<group>"; };
 		43E697C3229345C7A8B4FBD0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		48756E9B0770DECBDE3B1566 /* Exercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exercise.swift; sourceTree = "<group>"; };
@@ -143,6 +145,7 @@
 				B8CD110F95B39A5D8D1D0451 /* LyricsFormatTests.swift */,
 				315B9F3351D7EA692E706FEC /* LyricsParagraphDetectionTests.swift */,
 				3F579B7B2AA503517C0BE14E /* SingCoachTests.swift */,
+				3DD0531FD3C8444A9CE7A8CE /* GeminiAnalysisTests.swift */,
 			);
 			path = SingCoachTests;
 			sourceTree = "<group>";
@@ -359,6 +362,7 @@
 				600346BE4B1E5532E366313F /* LyricsFormatTests.swift in Sources */,
 				6386ACBBA4A835D2A2100375 /* LyricsParagraphDetectionTests.swift in Sources */,
 				7A3FB48D71D00A5A4F102D01 /* SingCoachTests.swift in Sources */,
+				3BC0C6756FDE4D5CADD98997 /* GeminiAnalysisTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

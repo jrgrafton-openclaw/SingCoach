@@ -69,85 +69,17 @@ Third line
         XCTAssertEqual(sorted[2].text, "Third")
     }
 
-    // MARK: - Exercise Keyword Matching
-    func testExerciseKeywordScoringReturnsMatch() {
-        let exercise = Exercise(
-            templateID: "test-exercise",
-            name: "Pitch Siren",
-            category: "pitch",
-            exerciseDescription: "Test description",
-            instruction: "Test instruction",
-            focusArea: "Pitch",
-            keywords: ["pitch", "siren", "range", "glide"]
-        )
-
-        let service = ExerciseRecommendationService()
-        let song = Song(title: "Test Song", artist: "Test Artist")
-        let transcript = "I have trouble with pitch and my range feels limited when I glide"
-        let result = service.recommendExercises(
-            transcript: transcript,
-            song: song,
-            allExercises: [exercise],
-            count: 5
-        )
-
-        XCTAssertEqual(result.count, 1)
-        XCTAssertEqual(result[0].name, "Pitch Siren")
-    }
-
-    func testExerciseKeywordScoringNoMatch() {
-        let exercise = Exercise(
-            templateID: "test-exercise",
-            name: "Breath Hiss",
-            category: "breath",
-            exerciseDescription: "Test",
-            instruction: "Test",
-            focusArea: "Breath",
-            keywords: ["breath", "support", "hiss"]
-        )
-
-        let service = ExerciseRecommendationService()
-        let song = Song(title: "Test Song", artist: "Test Artist")
-        let transcript = "I love singing and my tone was great today"
-        let result = service.recommendExercises(
-            transcript: transcript,
-            song: song,
-            allExercises: [exercise],
-            count: 5
-        )
-
-        XCTAssertEqual(result.count, 0)
-    }
-
-    // MARK: - Karaoke Fuzzy Match Scoring
-    func testKaraokeScoreHighForMatchingTitleWithKeyword() {
-        let score = ExerciseRecommendationService.karaokeScore(
-            candidateTitle: "Losing My Religion Karaoke",
-            originalTitle: "Losing My Religion"
-        )
-        XCTAssertGreaterThan(score, 0.5)
-    }
-
-    func testKaraokeScoreLowForUnrelatedTitle() {
-        // Score for exact match on title should exceed score for unrelated title
-        let relatedScore = ExerciseRecommendationService.karaokeScore(
-            candidateTitle: "Losing My Religion Karaoke",
-            originalTitle: "Losing My Religion"
-        )
-        let unrelatedScore = ExerciseRecommendationService.karaokeScore(
-            candidateTitle: "Happy Birthday Karaoke",
-            originalTitle: "Losing My Religion"
-        )
-        XCTAssertGreaterThan(relatedScore, unrelatedScore)
-    }
+    // MARK: - String Similarity (MusicKitService)
+    // ExerciseRecommendationService removed in Build 28; MusicKitService carries
+    // the equivalent static helpers used by karaoke track matching.
 
     func testStringSimilarityExactMatch() {
-        let score = ExerciseRecommendationService.stringSimilarity("hello world", "hello world")
+        let score = MusicKitService.stringSimilarity("hello world", "hello world")
         XCTAssertEqual(score, 1.0, accuracy: 0.001)
     }
 
     func testStringSimilarityNoMatch() {
-        let score = ExerciseRecommendationService.stringSimilarity("abc", "xyz")
+        let score = MusicKitService.stringSimilarity("abc", "xyz")
         XCTAssertEqual(score, 0.0, accuracy: 0.001)
     }
 
@@ -321,51 +253,8 @@ final class MusicKitAuthorizationTests: XCTestCase {
     }
 }
 
-// MARK: - TranscriptionService Threading Tests
-
-/// Regression tests for the iOS 26 / Swift 6 actor isolation crash in requestPermission().
-///
-/// Root cause: TranscriptionService is @MainActor, which made the
-/// SFSpeechRecognizer.requestAuthorization callback @MainActor-isolated. On iOS 26
-/// the Swift 6 runtime enforces this with a hard dispatch_assert_queue call
-/// (_swift_task_checkIsolatedSwift). Since the OS delivers the TCC/XPC callback
-/// on a background thread, the assertion fired → EXC_BREAKPOINT crash.
-///
-/// Fix: requestPermission() is marked nonisolated — its closure is no longer
-/// @MainActor-isolated and can be safely called from any thread.
-@MainActor
-final class TranscriptionPermissionTests: XCTestCase {
-
-    /// Verifies requestPermission() completes without crashing when called from
-    /// a @MainActor context (the normal app call-site).
-    ///
-    /// In the test runner, SFSpeechRecognizer.requestAuthorization calls back with
-    /// .denied on a background thread (no microphone available in sim/unit test
-    /// environment). Before the fix this path would crash on iOS 26 because the
-    /// @MainActor-isolated closure was called from that background thread.
-    func testRequestPermissionDoesNotCrashWhenCalledFromMainActor() async {
-        let service = TranscriptionService()
-        // Should return false (denied in test env) but must NOT crash.
-        // If this test completes at all, the threading fix is working.
-        let result = await service.requestPermission()
-        // In a unit test environment permission will always be denied/restricted.
-        XCTAssertFalse(result, "Permission should be denied in unit test environment")
-    }
-
-    /// Verifies requestPermission() is safe to call from a detached (non-main-actor)
-    /// task — simulating the TCC callback arriving on a background thread.
-    ///
-    /// Before the fix this would crash; after the fix it returns cleanly because
-    /// nonisolated functions don't carry @MainActor isolation into their closures.
-    func testRequestPermissionIsCallableFromDetachedTask() async {
-        let service = TranscriptionService()
-        let result = await Task.detached {
-            await service.requestPermission()
-        }.value
-        // Value is false in test env; we only care that it didn't crash.
-        XCTAssertFalse(result, "Permission should be denied in unit test environment")
-    }
-}
+// TranscriptionPermissionTests removed in Build 28 — SFSpeechRecognizer and
+// TranscriptionService replaced by GeminiAnalysisService. See GeminiAnalysisTests.swift.
 
 // MARK: - Analytics Mock Tests
 @MainActor
