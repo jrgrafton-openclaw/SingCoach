@@ -12,6 +12,9 @@ final class Lesson {
     var transcriptionStatus: String
     var recordingType: String  // "lesson" or "performance" — FEATURE 1
     @Relationship(deleteRule: .nullify) var recommendedExercises: [Exercise]
+    // AI Analysis fields (Build 28+)
+    var aiAnalysis: String?      // JSON-encoded AIAnalysisResult
+    var aiAnalysisDate: Date?    // when analysis was last run
 
     init(
         id: UUID = UUID(),
@@ -22,7 +25,9 @@ final class Lesson {
         transcript: String? = nil,
         transcriptionStatus: String = TranscriptionStatus.pending.rawValue,
         recordingType: String = "lesson",
-        recommendedExercises: [Exercise] = []
+        recommendedExercises: [Exercise] = [],
+        aiAnalysis: String? = nil,
+        aiAnalysisDate: Date? = nil
     ) {
         self.id = id
         self.songID = songID
@@ -33,6 +38,8 @@ final class Lesson {
         self.transcriptionStatus = transcriptionStatus
         self.recordingType = recordingType
         self.recommendedExercises = recommendedExercises
+        self.aiAnalysis = aiAnalysis
+        self.aiAnalysisDate = aiAnalysisDate
     }
 
     var status: TranscriptionStatus {

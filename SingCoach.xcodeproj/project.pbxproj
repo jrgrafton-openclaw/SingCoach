@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		04E5305D80D5AF343F6E8E32 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 10E9BAD8CCE3C621E610496B /* LaunchScreen.storyboard */; };
 		07A0DAAE514EB9881D058B29 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 682E71583A3ABB199C0861AD /* FirebaseAnalytics */; };
+		D4D016C923714C35A73820AF /* FirebaseAI in Frameworks */ = {isa = PBXBuildFile; productRef = E08D97D1286541879904FB1B /* FirebaseAI */; };
 		11A772F0942BCACF516EE1BC /* FindBackingTrackSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AE984E51ADF73A6AEE0ACC3 /* FindBackingTrackSheet.swift */; };
 		147A312D94FF8E9F5042501F /* GoogleService-Info.plist.bak in Resources */ = {isa = PBXBuildFile; fileRef = 71BB5E2F73544A5F9DA409C6 /* GoogleService-Info.plist.bak */; };
 		162FC34E85800503FF46C335 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 18D7B8B48234D5ECA66CEF28 /* GoogleService-Info.plist */; };
@@ -17,11 +18,9 @@
 		2C133092A9ABE90FD15775AF /* SongDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BD38CDA715B2967DCFD9968 /* SongDetailView.swift */; };
 		2CE8845094376675EE50EAE6 /* SingCoachApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF3D7E2FA361E15C1E9BE835 /* SingCoachApp.swift */; };
 		2D61A3BBDB65738AE7A1C364 /* AppleMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6988E0C94A635741BF95AED6 /* AppleMusicService.swift */; };
-		2E9DC821B7D5F13C5757D9BD /* TranscriptionQueueService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3BB000FB66687AB3416E360 /* TranscriptionQueueService.swift */; };
 		35A4434CE69C882EAFD60593 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA17E10439319846F430618 /* SettingsView.swift */; };
 		45F81578619BDEBCAFCACA3D /* AddSongView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB330796247FDF8F9152F804 /* AddSongView.swift */; };
 		50EFDFDFEA07BEEE716DBD0A /* PracticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45743C4E4E0EFE15A95FB81 /* PracticeView.swift */; };
-		550BD7FCD47F17A766DC17DA /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947D79FBD28A288AA7C357E3 /* TranscriptionService.swift */; };
 		55147E19A30C520D41284C17 /* SongsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31BEB052BC6D6151D5B1AA44 /* SongsListView.swift */; };
 		600346BE4B1E5532E366313F /* LyricsFormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8CD110F95B39A5D8D1D0451 /* LyricsFormatTests.swift */; };
 		6386ACBBA4A835D2A2100375 /* LyricsParagraphDetectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 315B9F3351D7EA692E706FEC /* LyricsParagraphDetectionTests.swift */; };
@@ -39,7 +38,7 @@
 		C5346C11513304CE4F63F30C /* ExerciseDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749B7E109593AC6276AC327A /* ExerciseDetailSheet.swift */; };
 		C7ACFCD12A2EEAB3C2B32DAF /* LyricsLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9A995355BAFB9558B624180 /* LyricsLine.swift */; };
 		CE0987021739A12EB58F0A64 /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC04BA6572B6F8D7DA438A2 /* AnalyticsService.swift */; };
-		D4FB89B0B2AA229E13F91502 /* ExerciseRecommendationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1814C8AA3336727EAA503038 /* ExerciseRecommendationService.swift */; };
+		832917B8358F431A96CEA9E9 /* GeminiAnalysisService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3448E3DF89A34B42B68B91AC /* GeminiAnalysisService.swift */; };
 		E003A1E28BC1FF79D6AB8546 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE63BADCF5275D24200190D3 /* ContentView.swift */; };
 		E3E97DB26563268CF513E976 /* MusicKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4E2B6F92146EE229D31E20 /* MusicKitService.swift */; };
 		F214DAC388281667FF9B0F31 /* SongsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D8F8BB321CBED7418F90E42 /* SongsViewModel.swift */; };
@@ -60,7 +59,7 @@
 /* Begin PBXFileReference section */
 		0D8F8BB321CBED7418F90E42 /* SongsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsViewModel.swift; sourceTree = "<group>"; };
 		10E9BAD8CCE3C621E610496B /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
-		1814C8AA3336727EAA503038 /* ExerciseRecommendationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseRecommendationService.swift; sourceTree = "<group>"; };
+		3448E3DF89A34B42B68B91AC /* GeminiAnalysisService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiAnalysisService.swift; sourceTree = "<group>"; };
 		18D7B8B48234D5ECA66CEF28 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		2103E89DE2BBF5C9795F3769 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		315B9F3351D7EA692E706FEC /* LyricsParagraphDetectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsParagraphDetectionTests.swift; sourceTree = "<group>"; };
@@ -81,7 +80,6 @@
 		79ED152F6172D320839BB62F /* SingCoach.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SingCoach.entitlements; sourceTree = "<group>"; };
 		7A4485C00614BD8C5DF6E2C9 /* ExerciseSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSeeder.swift; sourceTree = "<group>"; };
 		8FC04BA6572B6F8D7DA438A2 /* AnalyticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsService.swift; sourceTree = "<group>"; };
-		947D79FBD28A288AA7C357E3 /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
 		94F78FCB56312F8A7684DB52 /* SingCoachTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingCoachTheme.swift; sourceTree = "<group>"; };
 		95E4793EA7AD576C9950F638 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		9BD38CDA715B2967DCFD9968 /* SongDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailView.swift; sourceTree = "<group>"; };
@@ -94,7 +92,6 @@
 		E09D0D077561DCBAC0CE5B39 /* LRCLibService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRCLibService.swift; sourceTree = "<group>"; };
 		E72CDB85DCE282C47C140C49 /* SingCoachTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SingCoachTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EE63BADCF5275D24200190D3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		F3BB000FB66687AB3416E360 /* TranscriptionQueueService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionQueueService.swift; sourceTree = "<group>"; };
 		F9A995355BAFB9558B624180 /* LyricsLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsLine.swift; sourceTree = "<group>"; };
 		FEA17E10439319846F430618 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FF3D7E2FA361E15C1E9BE835 /* SingCoachApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingCoachApp.swift; sourceTree = "<group>"; };
@@ -107,6 +104,7 @@
 			files = (
 				07A0DAAE514EB9881D058B29 /* FirebaseAnalytics in Frameworks */,
 				B6762BA58458A989B340A23C /* FirebaseCrashlytics in Frameworks */,
+				D4D016C923714C35A73820AF /* FirebaseAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -156,12 +154,10 @@
 				6988E0C94A635741BF95AED6 /* AppleMusicService.swift */,
 				5318980AF21279E1AF2CB499 /* AudioPlaybackService.swift */,
 				40ED05EB329038D57C43C1EC /* AudioRecordingService.swift */,
-				1814C8AA3336727EAA503038 /* ExerciseRecommendationService.swift */,
+				3448E3DF89A34B42B68B91AC /* GeminiAnalysisService.swift */,
 				7A4485C00614BD8C5DF6E2C9 /* ExerciseSeeder.swift */,
 				E09D0D077561DCBAC0CE5B39 /* LRCLibService.swift */,
 				AC4E2B6F92146EE229D31E20 /* MusicKitService.swift */,
-				F3BB000FB66687AB3416E360 /* TranscriptionQueueService.swift */,
-				947D79FBD28A288AA7C357E3 /* TranscriptionService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -258,6 +254,7 @@
 			packageProductDependencies = (
 				682E71583A3ABB199C0861AD /* FirebaseAnalytics */,
 				0C8FD892FD7A1B383B44167B /* FirebaseCrashlytics */,
+				E08D97D1286541879904FB1B /* FirebaseAI */,
 			);
 			productName = SingCoach;
 			productReference = A425C75B52A05BA5C576A7A0 /* SingCoach.app */;
@@ -334,7 +331,7 @@
 				F7317D4E6E86C3225F206D2F /* EmptyStateView.swift in Sources */,
 				65882DB07C92E34EFFF11292 /* Exercise.swift in Sources */,
 				C5346C11513304CE4F63F30C /* ExerciseDetailSheet.swift in Sources */,
-				D4FB89B0B2AA229E13F91502 /* ExerciseRecommendationService.swift in Sources */,
+				832917B8358F431A96CEA9E9 /* GeminiAnalysisService.swift in Sources */,
 				7C431D55FC6EAB30637F5D08 /* ExerciseSeeder.swift in Sources */,
 				11A772F0942BCACF516EE1BC /* FindBackingTrackSheet.swift in Sources */,
 				A95674CF3240796233B459EB /* LRCLibService.swift in Sources */,
@@ -352,8 +349,6 @@
 				2C133092A9ABE90FD15775AF /* SongDetailView.swift in Sources */,
 				55147E19A30C520D41284C17 /* SongsListView.swift in Sources */,
 				F214DAC388281667FF9B0F31 /* SongsViewModel.swift in Sources */,
-				2E9DC821B7D5F13C5757D9BD /* TranscriptionQueueService.swift in Sources */,
-				550BD7FCD47F17A766DC17DA /* TranscriptionService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -644,6 +639,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7C292156A5F8610795C6B758 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAnalytics;
+		};
+		E08D97D1286541879904FB1B /* FirebaseAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C292156A5F8610795C6B758 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

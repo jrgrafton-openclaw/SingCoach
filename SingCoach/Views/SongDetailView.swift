@@ -848,11 +848,11 @@ struct LessonsSection: View {
                                     }
                                 }
                                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                                    if !lesson.isPerformance && lesson.status != .processing {
+                                    if lesson.status != .processing {
                                         Button {
                                             retranscribe(lesson)
                                         } label: {
-                                            Label("Retranscribe", systemImage: "waveform.badge.magnifyingglass")
+                                            Label("Analyze", systemImage: "sparkles")
                                         }
                                         .tint(SingCoachTheme.accent)
                                     }
@@ -914,40 +914,36 @@ struct LessonsSection: View {
 
     func retranscribe(_ lesson: Lesson) {
         retranscribingID = lesson.id
-        let audioURL = AudioPathResolver.resolvedURL(lesson.audioFileURL)
         let allExercises = (try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? []
-        Task {
+        let audioFileURL = lesson.audioFileURL
+        let isPerformance = lesson.isPerformance
+
+        Task { @MainActor in
             lesson.transcriptionStatus = TranscriptionStatus.processing.rawValue
             try? modelContext.save()
 
-            let service = TranscriptionService()
-
-            // Ensure permission is granted before starting (Lesson 21: delay avoids silent failure)
-            let granted = await service.requestPermission()
-            guard granted else {
-                lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
-                try? modelContext.save()
-                retranscribingID = nil
-                print("[SingCoach] Re-transcribe: speech permission denied")
-                return
-            }
-
-            // Small delay after permission dialog to let any UI settle (Lesson 21)
-            try? await Task.sleep(nanoseconds: 300_000_000)
-
-            let result = await service.transcribe(audioFileURL: audioURL)
-            switch result {
-            case .success(let transcript):
+            do {
+                let service = GeminiAnalysisService()
+                let (result, transcript) = try await service.analyze(
+                    audioFileURL: audioFileURL,
+                    isPerformance: isPerformance,
+                    allExercises: allExercises
+                )
                 lesson.transcript = transcript
                 lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
-                let recommender = ExerciseRecommendationService()
-                let recommended = await recommender.recommendAsync(
-                    transcript: transcript, song: song, allExercises: allExercises)
-                lesson.recommendedExercises = recommended
-                print("[SingCoach] Re-transcribe done: \(transcript.split(separator: " ").count) words, \(recommended.count) exercises")
-            case .failure(let error):
+                if let encoded = try? JSONEncoder().encode(result),
+                   let json = String(data: encoded, encoding: .utf8) {
+                    lesson.aiAnalysis = json
+                    lesson.aiAnalysisDate = Date()
+                }
+                lesson.recommendedExercises = service.matchExercises(
+                    names: result.recommendedExerciseNames,
+                    from: allExercises
+                )
+                print("[SingCoach] Swipe-analyze done: overall=\(result.overall)")
+            } catch {
                 lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
-                print("[SingCoach] Re-transcribe failed: \(error)")
+                print("[SingCoach] Swipe-analyze failed: \(error)")
             }
             try? modelContext.save()
             retranscribingID = nil
@@ -1147,9 +1143,10 @@ struct LessonDetailSheet: View {
     @State private var localSeek: Double = 0
     // Bug 8 fix: show load error
     @State private var showLoadError = false
-    // Refresh transcript
-    @State private var isRetranscribing = false
-    @StateObject private var transcriptionService = TranscriptionService()
+    // AI Analysis
+    @State private var isAnalyzing = false
+    @State private var analysisResult: AIAnalysisResult?
+    @State private var analysisError: String?
 
     let speeds: [Float] = [0.75, 1.0, 1.25, 1.5]
 
@@ -1282,31 +1279,29 @@ struct LessonDetailSheet: View {
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                             }
 
-                            // Transcribe button — visible for all recordings
+                            // Analyze button
                             Divider().background(SingCoachTheme.textSecondary.opacity(0.2))
-                            Button { refreshTranscript() } label: {
-                                if isRetranscribing {
+                            Button { runAnalysis() } label: {
+                                if isAnalyzing {
                                     HStack(spacing: 6) {
                                         ProgressView().scaleEffect(0.8)
-                                        Text(transcriptionService.chunkProgress.isEmpty
-                                             ? "Transcribing…"
-                                             : transcriptionService.chunkProgress)
+                                        Text("Analysing…")
                                             .font(.system(size: 14))
                                             .foregroundColor(SingCoachTheme.textSecondary)
                                     }
                                     .frame(maxWidth: .infinity)
                                 } else {
                                     HStack(spacing: 6) {
-                                        Image(systemName: "waveform.badge.magnifyingglass")
+                                        Image(systemName: "sparkles")
                                             .font(.system(size: 14))
-                                        Text(lesson.transcript?.isEmpty == false ? "Re-transcribe" : "Transcribe")
+                                        Text(lesson.aiAnalysis != nil ? "Re-analyze" : "Analyze")
                                             .font(.system(size: 14, weight: .medium))
                                     }
                                     .frame(maxWidth: .infinity)
                                     .foregroundColor(SingCoachTheme.accent)
                                 }
                             }
-                            .disabled(isRetranscribing)
+                            .disabled(isAnalyzing)
                             .padding(.top, 2)
                         }
                         .padding(.horizontal, 16)
@@ -1315,7 +1310,16 @@ struct LessonDetailSheet: View {
                         .cornerRadius(16)
                         .padding(.horizontal, 16)
 
-                        // Transcript card — visible for any recording that has a transcript
+                        // AI Analysis card
+                        AIAnalysisCard(
+                            result: analysisResult,
+                            isAnalyzing: isAnalyzing,
+                            errorMessage: analysisError,
+                            onAnalyze: { runAnalysis() }
+                        )
+                        .padding(.horizontal, 16)
+
+                        // Transcript card — shown when Gemini has generated a transcript
                         if let transcript = lesson.transcript, !transcript.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Transcript")
@@ -1329,6 +1333,7 @@ struct LessonDetailSheet: View {
                             .padding(.horizontal, 16)
                         }
 
+                        // Recommended exercises (populated by AI analysis)
                         if !lesson.recommendedExercises.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Recommended Exercises")
@@ -1363,48 +1368,68 @@ struct LessonDetailSheet: View {
                 try player.load(url: url)
             } catch {
                 showLoadError = true
-                print("[SingCoach] LessonDetailSheet onAppear: failed to load: \(error)")
+                print("[SingCoach] LessonDetailSheet onAppear: failed to load audio: \(error)")
+            }
+            // Decode any previously stored AI analysis
+            if let json = lesson.aiAnalysis,
+               let data = json.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode(AIAnalysisResult.self, from: data) {
+                analysisResult = decoded
             }
         }
     }
 
-    func refreshTranscript() {
-        guard !isRetranscribing else { return }
-        isRetranscribing = true
-        let audioURL = AudioPathResolver.resolvedURL(lesson.audioFileURL)
+    // MARK: - AI Analysis
+
+    func runAnalysis() {
+        guard !isAnalyzing else { return }
+        isAnalyzing = true
+        analysisError = nil
         let allExercises = (try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? []
-        Task {
+        let audioFileURL = lesson.audioFileURL
+        let isPerformance = lesson.isPerformance
+
+        Task { @MainActor in
             lesson.transcriptionStatus = TranscriptionStatus.processing.rawValue
             try? modelContext.save()
 
-            let granted = await transcriptionService.requestPermission()
-            guard granted else {
-                lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
-                try? modelContext.save()
-                isRetranscribing = false
-                return
-            }
-            // Lesson 21: brief delay after permission dialog
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            do {
+                let service = GeminiAnalysisService()
+                let (result, transcript) = try await service.analyze(
+                    audioFileURL: audioFileURL,
+                    isPerformance: isPerformance,
+                    allExercises: allExercises
+                )
 
-            let result = await transcriptionService.transcribe(audioFileURL: audioURL)
-            switch result {
-            case .success(let transcript):
+                // Persist transcript
                 lesson.transcript = transcript
                 lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
-                let allSongs = (try? modelContext.fetch(FetchDescriptor<Song>())) ?? []
-                if let song = allSongs.first(where: { $0.id == lesson.songID }) {
-                    let recommended = await ExerciseRecommendationService()
-                        .recommendAsync(transcript: transcript, song: song, allExercises: allExercises)
-                    lesson.recommendedExercises = recommended
+
+                // Persist analysis
+                if let encoded = try? JSONEncoder().encode(result),
+                   let json = String(data: encoded, encoding: .utf8) {
+                    lesson.aiAnalysis = json
+                    lesson.aiAnalysisDate = Date()
                 }
-                print("[SingCoach] LessonDetailSheet: refreshed transcript (\(transcript.split(separator: " ").count) words)")
-            case .failure(let error):
+
+                // Persist recommended exercises
+                lesson.recommendedExercises = service.matchExercises(
+                    names: result.recommendedExerciseNames,
+                    from: allExercises
+                )
+
+                try? modelContext.save()
+                analysisResult = result
+                print("[SingCoach] AI analysis complete: overall=\(result.overall)")
+
+            } catch {
                 lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
-                print("[SingCoach] LessonDetailSheet: refresh failed: \(error)")
+                try? modelContext.save()
+                analysisError = error.localizedDescription
+                print("[SingCoach] AI analysis failed: \(error)")
             }
-            try? modelContext.save()
-            isRetranscribing = false
+
+            isAnalyzing = false
         }
     }
 
@@ -1891,5 +1916,177 @@ struct TranscriptView: View {
             .padding(.vertical, 2)
         }
         .frame(maxHeight: 280)
+    }
+}
+
+// MARK: - AI Analysis Card
+
+struct AIAnalysisCard: View {
+    let result: AIAnalysisResult?
+    let isAnalyzing: Bool
+    let errorMessage: String?
+    let onAnalyze: () -> Void
+
+    private let aiGreen = Color(hex: "#30D158")
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row
+            HStack(alignment: .center) {
+                Label("AI Analysis", systemImage: "sparkles")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(SingCoachTheme.accent)
+                Spacer()
+                if result != nil && !isAnalyzing {
+                    Button(action: onAnalyze) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Re-analyze")
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundColor(SingCoachTheme.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(SingCoachTheme.accent, lineWidth: 1)
+                        )
+                    }
+                }
+            }
+            .padding(.bottom, 14)
+
+            if isAnalyzing {
+                // Loading state
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Transcribing and analysing…")
+                        .font(.system(size: 14))
+                        .foregroundColor(SingCoachTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 8)
+
+            } else if let result = result {
+                // Score pills row
+                HStack(spacing: 8) {
+                    scorePill(label: "Overall", value: result.overall, outlined: true)
+                    scorePill(label: "Pitch",   value: result.pitch)
+                    scorePill(label: "Tone",    value: result.tone)
+                    scorePill(label: "Breath",  value: result.breath)
+                    scorePill(label: "Timing",  value: result.timing)
+                }
+                .padding(.bottom, 12)
+
+                // TLDR
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("TLDR")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(SingCoachTheme.textSecondary)
+                        .tracking(1.2)
+                    Text(result.tldr)
+                        .font(.system(size: 14))
+                        .foregroundColor(SingCoachTheme.textPrimary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(SingCoachTheme.background)
+                .cornerRadius(10)
+                .padding(.bottom, 12)
+
+                // Key moments
+                if !result.keyMoments.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("KEY MOMENTS")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(SingCoachTheme.textSecondary)
+                            .tracking(1.2)
+                            .padding(.bottom, 10)
+
+                        ForEach(Array(result.keyMoments.enumerated()), id: \.offset) { idx, moment in
+                            HStack(alignment: .top, spacing: 12) {
+                                Text(moment.timestamp)
+                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                    .foregroundColor(SingCoachTheme.accent)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(SingCoachTheme.accent.opacity(0.15))
+                                    .cornerRadius(6)
+                                    .fixedSize()
+
+                                Text(moment.text)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(SingCoachTheme.textPrimary)
+                                    .lineSpacing(3)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.vertical, 8)
+
+                            if idx < result.keyMoments.count - 1 {
+                                Divider().background(SingCoachTheme.textSecondary.opacity(0.15))
+                            }
+                        }
+                    }
+                }
+
+            } else if let error = errorMessage {
+                // Error state
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundColor(.red)
+                    Text(error)
+                        .font(.system(size: 13))
+                        .foregroundColor(SingCoachTheme.textSecondary)
+                        .lineLimit(3)
+                }
+                .padding(.bottom, 8)
+                Button(action: onAnalyze) {
+                    Text("Try again")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(SingCoachTheme.accent)
+                }
+
+            } else {
+                // Empty state — no analysis yet
+                Button(action: onAnalyze) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 14))
+                        Text("Get AI Feedback")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundColor(SingCoachTheme.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+            }
+        }
+        .padding(16)
+        .background(SingCoachTheme.surface)
+        .cornerRadius(16)
+    }
+
+    @ViewBuilder
+    private func scorePill(label: String, value: Double, outlined: Bool = false) -> some View {
+        let scoreColor = value >= 7.0 ? Color(hex: "#30D158") : SingCoachTheme.accent
+        VStack(spacing: 3) {
+            Text(String(format: value.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.1f", value))
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(scoreColor)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(SingCoachTheme.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(SingCoachTheme.background)
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(outlined ? scoreColor : Color.clear, lineWidth: 1.5)
+        )
     }
 }

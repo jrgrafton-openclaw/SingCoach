@@ -26,8 +26,6 @@
 	<string>SingCoach uses Apple Music to find and play karaoke backing tracks for your songs.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SingCoach needs microphone access to record your singing lessons.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>SingCoach uses speech recognition to transcribe your singing lessons and recommend exercises.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

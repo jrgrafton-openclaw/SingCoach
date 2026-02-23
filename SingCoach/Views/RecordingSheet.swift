@@ -126,16 +126,6 @@ struct RecordingSheet: View {
                         }
                     }
 
-                    if viewModel.transcriptionStatus == .processing {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Transcribing...")
-                                .font(.system(size: 14))
-                                .foregroundColor(SingCoachTheme.textSecondary)
-                        }
-                    }
-
                     Spacer()
                 }
             }

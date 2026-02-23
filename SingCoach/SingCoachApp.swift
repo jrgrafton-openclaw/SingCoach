@@ -8,8 +8,6 @@ struct SingCoachApp: App {
     @StateObject private var exerciseSeeder = ExerciseSeeder()
     // Bug 6 fix: shared RecordingViewModel injected as environment object
     @StateObject private var recordingVM = RecordingViewModel()
-    // Retranscription queue: retries pending/processing/failed lessons at launch
-    @StateObject private var transcriptionQueue = TranscriptionQueueService()
 
     init() {
         FirebaseApp.configure()
@@ -26,8 +24,6 @@ struct SingCoachApp: App {
                     case .success(let container):
                         Task { @MainActor in
                             exerciseSeeder.seedIfNeeded(context: container.mainContext)
-                            // Retry any lessons stuck in pending/processing/failed state
-                            transcriptionQueue.retryStuckLessons(context: container.mainContext)
                         }
                     case .failure(let error):
                         print("[SingCoach] ModelContainer failed: \(error)")

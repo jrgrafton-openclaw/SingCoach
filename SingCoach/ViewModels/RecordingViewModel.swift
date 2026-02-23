@@ -8,13 +8,10 @@ final class RecordingViewModel: ObservableObject {
     @Published var waveformSamples: [Float] = Array(repeating: 0, count: 40)
     // Bug 6 fix: recordingDuration forwarded via Combine from recorder.$durationSeconds
     @Published var recordingDuration: Double = 0
-    @Published var transcriptionStatus: TranscriptionStatus = .pending
     // Bug 5 fix: repurposed as showInlineRecorder (sheet removed, inline recorder used)
     @Published var showRecordingSheet = false
 
     let recorder = AudioRecordingService()
-    private let transcriptionService = TranscriptionService()
-    private let recommendationService = ExerciseRecommendationService()
 
     private var currentFileURL: URL?
     private var currentRelativePath: String?
@@ -63,6 +60,7 @@ final class RecordingViewModel: ObservableObject {
         let duration = recorder.stopRecording()
         isRecording = false
 
+        // Save the recording immediately — AI analysis is user-initiated via the Analyze button
         let lesson = Lesson(
             songID: song.id,
             audioFileURL: storedPath,
@@ -75,68 +73,8 @@ final class RecordingViewModel: ObservableObject {
         try? modelContext.save()
 
         AnalyticsService.shared.lessonRecorded(durationSeconds: duration)
-        print("[SingCoach] Lesson saved (type=\(currentRecordingType)), starting transcription")
+        print("[SingCoach] Recording saved (type=\(currentRecordingType)) — tap Analyze to get AI feedback")
 
-        // Skip automatic transcription for performances, but mark as done
-        // (not pending/queued) so they don't appear stuck in the UI.
-        // The user can still manually request transcription via the Refresh button.
-        guard currentRecordingType != "performance" else {
-            lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
-            try? modelContext.save()
-            showRecordingSheet = false
-            return
-        }
-
-        // Lesson 21: delay before requesting speech permission — avoids silent dialog failure
-        // if called too close to a UI sheet dismiss or recorder stop event.
-        try? await Task.sleep(nanoseconds: 600_000_000)
-
-        // Ensure speech permission before transcribing (silent failure if not granted)
-        let permissionGranted = await transcriptionService.requestPermission()
-        guard permissionGranted else {
-            lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
-            transcriptionStatus = .failed
-            print("[SingCoach] Transcription skipped — speech recognition permission denied")
-            try? modelContext.save()
-            return
-        }
-
-        // Start transcription
-        lesson.transcriptionStatus = TranscriptionStatus.processing.rawValue
-        try? modelContext.save()
-        transcriptionStatus = .processing
-
-        // Use the resolved URL from the stored relative path (Lesson 32: absolute paths can
-        // change across reinstalls; currentFileURL is the recording-time absolute URL but
-        // AudioPathResolver is the safe canonical resolver).
-        let resolvedAudioURL = AudioPathResolver.resolvedURL(storedPath)
-        let result = await transcriptionService.transcribe(audioFileURL: resolvedAudioURL)
-        switch result {
-        case .success(let transcript):
-            lesson.transcript = transcript
-            lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
-            transcriptionStatus = .done
-
-            let wordCount = transcript.split(separator: " ").count
-            AnalyticsService.shared.lessonTranscribed(success: true, wordCount: wordCount)
-
-            // Recommend exercises — async path tries Apple Intelligence first, falls back to NLEmbedding
-            let allExercises = (try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? []
-            let recommended = await recommendationService.recommendAsync(
-                transcript: transcript,
-                song: song,
-                allExercises: allExercises
-            )
-            lesson.recommendedExercises = recommended
-
-        case .failure(let error):
-            lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
-            transcriptionStatus = .failed
-            AnalyticsService.shared.lessonTranscribed(success: false, wordCount: 0)
-            print("[SingCoach] Transcription failed: \(error)")
-        }
-
-        try? modelContext.save()
         showRecordingSheet = false
     }
 }
