@@ -134,9 +134,15 @@ struct SectionCard<Content: View>: View {
     }
 }
 
-/// Inline YouTube embed that sets baseURL to youtube.com, bypassing Error 153.
-/// YouTube's embed restriction is origin-checked — WKWebView with baseURL of
-/// https://www.youtube.com is treated as a first-party context by the player.
+/// Inline YouTube embed using youtube-nocookie.com + explicit origin parameter.
+///
+/// Error history:
+///  Error 153 — DOM origin mismatch → fixed by loadHTMLString with baseURL (Build 9)
+///  Error 152 — embed URL origin check → fixed by youtube-nocookie.com + origin= param (Build 29)
+///
+/// youtube-nocookie.com is YouTube's official privacy-preserving embed domain.
+/// It skips consent/cookie checks that cause error 152 on the standard domain,
+/// and accepts the origin= parameter to satisfy its own origin validation.
 struct YouTubeWebView: UIViewRepresentable {
     let urlString: String
 
@@ -144,6 +150,8 @@ struct YouTubeWebView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
+        // Use persistent data store so the player can cache session data between views
+        config.websiteDataStore = .default()
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.backgroundColor = .black
         webView.isOpaque = false
@@ -153,6 +161,8 @@ struct YouTubeWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         guard let videoID = extractVideoID(from: urlString) else { return }
+        // origin= must match the baseURL domain — both set to youtube-nocookie.com
+        let embedURL = "https://www.youtube-nocookie.com/embed/\(videoID)?playsinline=1&rel=0&enablejsapi=1&origin=https://www.youtube-nocookie.com"
         let html = """
         <!DOCTYPE html>
         <html>
@@ -165,15 +175,16 @@ struct YouTubeWebView: UIViewRepresentable {
         </head>
         <body>
         <iframe
-          src="https://www.youtube.com/embed/\(videoID)?playsinline=1&rel=0"
+          src="\(embedURL)"
           allow="autoplay; encrypted-media"
-          allowfullscreen>
+          allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin">
         </iframe>
         </body>
         </html>
         """
-        // baseURL of youtube.com makes the player trust this as a first-party origin
-        webView.loadHTMLString(html, baseURL: URL(string: "https://www.youtube.com"))
+        // baseURL matches the origin= parameter above — player sees a consistent trusted origin
+        webView.loadHTMLString(html, baseURL: URL(string: "https://www.youtube-nocookie.com"))
     }
 
     private func extractVideoID(from urlString: String) -> String? {
