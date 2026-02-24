@@ -109,7 +109,13 @@ struct SongRowView: View {
                     .foregroundColor(SingCoachTheme.textSecondary)
                     .lineLimit(1)
                 if !song.lessons.isEmpty {
-                    Text("\(song.lessons.count) lesson\(song.lessons.count == 1 ? "" : "s")")
+                    let lessonCount = song.lessons.filter { !$0.isPerformance }.count
+                    let perfCount   = song.lessons.filter {  $0.isPerformance }.count
+                    let parts: [String] = [
+                        lessonCount > 0 ? "\(lessonCount) \(lessonCount == 1 ? "lesson" : "lessons")" : nil,
+                        perfCount   > 0 ? "\(perfCount) \(perfCount   == 1 ? "performance" : "performances")" : nil
+                    ].compactMap { $0 }
+                    Text(parts.joined(separator: " · "))
                         .font(.system(size: 11))
                         .foregroundColor(SingCoachTheme.accent)
                 }

@@ -102,7 +102,7 @@ struct PracticeGroupView: View {
             Text(song.title)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(SingCoachTheme.accent)
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 16)
 
             ForEach(exercises) { exercise in
                 // Pass the lesson ID so PracticeEntry can reference the source recording
@@ -110,6 +110,7 @@ struct PracticeGroupView: View {
                     exercise: exercise,
                     lessonID: song.mostRecentRecordingWithExercises?.id
                 )
+                .padding(.horizontal, 16)
             }
         }
     }
@@ -121,19 +122,18 @@ struct PracticeStatsView: View {
     let history: [PracticeEntry]
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                StatCard(icon: "flame.fill", iconColor: .orange,
-                         value: "\(history.currentStreak)", label: "day streak")
-                StatCard(icon: "checkmark.circle.fill", iconColor: .green,
-                         value: "\(history.thisWeekCount)", label: "this week")
-                StatCard(icon: "star.fill", iconColor: SingCoachTheme.accent,
-                         value: "\(history.count)", label: "all time")
-                if let top = history.topCategory {
-                    StatCard(icon: "trophy.fill", iconColor: .yellow,
-                             value: ExerciseCategory(rawValue: top)?.displayName ?? top.capitalized,
-                             label: "top category")
-                }
+        // Equal-width cards — no scroll needed (4 cards max)
+        HStack(spacing: 10) {
+            StatCard(icon: "flame.fill", iconColor: .orange,
+                     value: "\(history.currentStreak)", label: "day streak")
+            StatCard(icon: "checkmark.circle.fill", iconColor: .green,
+                     value: "\(history.thisWeekCount)", label: "this week")
+            StatCard(icon: "star.fill", iconColor: SingCoachTheme.accent,
+                     value: "\(history.count)", label: "all time")
+            if let top = history.topCategory {
+                StatCard(icon: "trophy.fill", iconColor: .yellow,
+                         value: ExerciseCategory(rawValue: top)?.displayName ?? top.capitalized,
+                         label: "top category")
             }
         }
     }
@@ -146,19 +146,24 @@ struct StatCard: View {
     let label: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .center, spacing: 4) {
             Image(systemName: icon)
                 .font(.system(size: 16))
                 .foregroundColor(iconColor)
             Text(value)
-                .font(.system(size: 20, weight: .bold))
+                .font(.system(size: 16, weight: .bold))
                 .foregroundColor(SingCoachTheme.textPrimary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+                .multilineTextAlignment(.center)
             Text(label)
-                .font(.system(size: 11))
+                .font(.system(size: 10))
                 .foregroundColor(SingCoachTheme.textSecondary)
+                .multilineTextAlignment(.center)
         }
-        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
+        .padding(.horizontal, 6)
         .background(SingCoachTheme.surface)
         .cornerRadius(12)
     }
@@ -168,11 +173,27 @@ struct StatCard: View {
 
 struct PracticeHistoryView: View {
     let history: [PracticeEntry]
+    @Environment(\.modelContext) private var modelContext
 
+    /// Groups entries by calendar day, most recent day first.
     private var grouped: [(date: Date, entries: [PracticeEntry])] {
         let cal = Calendar.current
         let byDay = Dictionary(grouping: history) { cal.startOfDay(for: $0.date) }
         return byDay.keys.sorted(by: >).map { day in (day, byDay[day]!.sorted { $0.date > $1.date }) }
+    }
+
+    private func formatGroupDate(_ date: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return "Today" }
+        if cal.isDateInYesterday(date) { return "Yesterday" }
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d"
+        return f.string(from: date)
+    }
+
+    private func deleteEntry(_ entry: PracticeEntry) {
+        modelContext.delete(entry)
+        try? modelContext.save()
     }
 
     var body: some View {
@@ -185,39 +206,120 @@ struct PracticeHistoryView: View {
 
             ForEach(grouped, id: \.date) { group in
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(group.date, style: .relative)
+                    Text(formatGroupDate(group.date))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(SingCoachTheme.textSecondary)
                         .padding(.horizontal, 16)
 
-                    ForEach(group.entries) { entry in
-                        HStack(spacing: 10) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                                .font(.system(size: 14))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.exerciseName)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(SingCoachTheme.textPrimary)
-                                Text(ExerciseCategory(rawValue: entry.exerciseCategory)?.displayName
-                                     ?? entry.exerciseCategory.capitalized)
-                                    .font(.system(size: 11))
-                                    .foregroundColor(SingCoachTheme.textSecondary)
+                    // SwipeToDeleteRow works inside ScrollView (List inside ScrollView breaks swipe)
+                    VStack(spacing: 6) {
+                        ForEach(group.entries) { entry in
+                            SwipeToDeleteRow(onDelete: { deleteEntry(entry) }) {
+                                PracticeHistoryEntryRow(entry: entry)
                             }
-                            Spacer()
-                            Text(entry.date, style: .time)
-                                .font(.system(size: 11))
-                                .foregroundColor(SingCoachTheme.textSecondary)
+                            .padding(.horizontal, 16)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(SingCoachTheme.surface)
-                        .cornerRadius(10)
-                        .padding(.horizontal, 16)
                     }
                 }
             }
         }
+    }
+}
+
+// MARK: - Swipe-to-delete wrapper (works inside ScrollView; List inside ScrollView breaks swipe)
+
+struct SwipeToDeleteRow<Content: View>: View {
+    let onDelete: () -> Void
+    @ViewBuilder let content: () -> Content
+
+    @State private var dragOffset: CGFloat = 0
+    @State private var isOpen = false
+    private let deleteButtonWidth: CGFloat = 72
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            // Red delete zone — visible when swiped left
+            Button(action: {
+                snap(to: 0)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { onDelete() }
+            }) {
+                ZStack {
+                    Color.red
+                    Image(systemName: "trash")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+            }
+            .frame(width: abs(min(dragOffset, 0)))
+            .cornerRadius(10)
+
+            content()
+                // Ensure the full row background area is hittable
+                .contentShape(Rectangle())
+                .offset(x: dragOffset)
+                // highPriorityGesture so the drag isn't stolen by the outer ScrollView
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            // Only track horizontal-dominant drags
+                            guard abs(value.translation.width) > abs(value.translation.height) * 0.7 else { return }
+                            let base: CGFloat = isOpen ? -deleteButtonWidth : 0
+                            dragOffset = min(0, max(base + value.translation.width, -deleteButtonWidth))
+                        }
+                        .onEnded { value in
+                            let swipeDistance = value.translation.width
+                            let predictedEnd = value.predictedEndTranslation.width
+                            if swipeDistance < -(deleteButtonWidth * 0.3) || predictedEnd < -deleteButtonWidth {
+                                snap(to: -deleteButtonWidth)
+                            } else {
+                                snap(to: 0)
+                            }
+                        }
+                )
+        }
+        .clipped()
+        // Tap anywhere on the ZStack to close if open
+        .onTapGesture {
+            if isOpen { snap(to: 0) }
+        }
+    }
+
+    private func snap(to offset: CGFloat) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            dragOffset = offset
+            isOpen = offset != 0
+        }
+    }
+}
+
+// MARK: - Practice history entry row
+
+struct PracticeHistoryEntryRow: View {
+    let entry: PracticeEntry
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.system(size: 14))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.exerciseName)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(SingCoachTheme.textPrimary)
+                Text(ExerciseCategory(rawValue: entry.exerciseCategory)?.displayName
+                     ?? entry.exerciseCategory.capitalized)
+                    .font(.system(size: 11))
+                    .foregroundColor(SingCoachTheme.textSecondary)
+            }
+            Spacer()
+            Text(entry.date, style: .time)
+                .font(.system(size: 11))
+                .foregroundColor(SingCoachTheme.textSecondary)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(SingCoachTheme.surface)
+        .cornerRadius(10)
     }
 }
 

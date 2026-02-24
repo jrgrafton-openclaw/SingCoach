@@ -5,67 +5,67 @@
     
     
       
-      <testcase classname="fastlane.lanes" name="00: default_platform" time="0.000183">
+      <testcase classname="fastlane.lanes" name="00: default_platform" time="0.000181">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="01: Switch to ios api_key lane" time="4.6e-05">
+      <testcase classname="fastlane.lanes" name="01: Switch to ios api_key lane" time="0.000201">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="02: app_store_connect_api_key" time="0.002118">
+      <testcase classname="fastlane.lanes" name="02: app_store_connect_api_key" time="0.001537">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="03: security unlock-keychain -p &apos;&apos; ~/Library/Keychains/build.keychain-db" time="0.015779">
+      <testcase classname="fastlane.lanes" name="03: security unlock-keychain -p &apos;&apos; ~/Library/Keychains/build.keychain-db" time="0.010182">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="04: security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k &apos;&apos; ~/Library/Keychains/build.keychain-db 2&gt;/dev/null || true" time="0.025796">
+      <testcase classname="fastlane.lanes" name="04: security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k &apos;&apos; ~/Library/Keychains/build.keychain-db 2&gt;/dev/null || true" time="0.02461">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="05: security list-keychains -d user -s ~/Library/Keychains/build.keychain-db ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain" time="0.007897">
+      <testcase classname="fastlane.lanes" name="05: security list-keychains -d user -s ~/Library/Keychains/build.keychain-db ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain" time="0.007671">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="06: Switch to ios create_json_key lane" time="0.000107">
+      <testcase classname="fastlane.lanes" name="06: Switch to ios create_json_key lane" time="0.000128">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="07: sigh" time="3.737191">
+      <testcase classname="fastlane.lanes" name="07: sigh" time="2.907198">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="08: cp &apos;/Users/familybot/.openclaw/workspace/projects/SingCoach/fastlane/AppStore_com.jrgrafton.singcoach.mobileprovision&apos; ~/Library/MobileDevice/Provisioning\ Profiles/bea2a72b-732b-456d-9db6-0ed683b9c86a.mobileprovision" time="0.005705">
+      <testcase classname="fastlane.lanes" name="08: cp &apos;/Users/familybot/.openclaw/workspace/projects/SingCoach/fastlane/AppStore_com.jrgrafton.singcoach.mobileprovision&apos; ~/Library/MobileDevice/Provisioning\ Profiles/13d74dea-3d78-4ae9-b984-eeb6db13c719.mobileprovision" time="0.004836">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="09: update_code_signing_settings" time="0.040143">
+      <testcase classname="fastlane.lanes" name="09: update_code_signing_settings" time="0.033776">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="10: shell command" time="0.006461">
+      <testcase classname="fastlane.lanes" name="10: shell command" time="0.006604">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="11: /usr/libexec/PlistBuddy -c &apos;Set CFBundleVersion 30&apos; &apos;/Users/familybot/.openclaw/workspace/projects/SingCoach/SingCoach/Info.plist&apos;" time="0.005026">
+      <testcase classname="fastlane.lanes" name="11: /usr/libexec/PlistBuddy -c &apos;Set CFBundleVersion 37&apos; &apos;/Users/familybot/.openclaw/workspace/projects/SingCoach/SingCoach/Info.plist&apos;" time="0.005108">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="12: build_app" time="87.5377">
+      <testcase classname="fastlane.lanes" name="12: build_app" time="92.024733">
         
       </testcase>
     
@@ -82,7 +82,7 @@
 }
 EOF
       fastlane pilot upload --ipa &quot;/Users/familybot/.openclaw/workspace/projects/SingCoach/build/SingCoach.ipa&quot;         --skip_waiting_for_build_processing         --app_identifier &quot;com.jrgrafton.singcoach&quot;         --api-key-path /tmp/asc_api_key.json
-    " time="39.482172">
+    " time="45.836811">
         
       </testcase>
     
@@ -101,7 +101,7 @@ def headers():
 
 APP_ID = &quot;6759441600&quot;
 GROUP_ID = &quot;7b26e051-1109-4403-b4a3-86873cbf970e&quot;
-BUILD_VERSION = &quot;30&quot;
+BUILD_VERSION = &quot;37&quot;
 
 # Poll until the build appears AND is VALID (not PROCESSING / INVALID)
 build_id = None
@@ -156,32 +156,7 @@ print(&quot;Builds now in Internal Testers group:&quot;)
 for b in result[&quot;data&quot;][:5]:
     print(f&quot;  Build {b[&apos;attributes&apos;][&apos;version&apos;]} — {b[&apos;attributes&apos;][&apos;processingState&apos;]}&quot;)
 PYEOF
-    " time="122.081442">
-        
-      </testcase>
-    
-      
-      <testcase classname="fastlane.lanes" name="15: shell command" time="0.015173">
-        
-      </testcase>
-    
-      
-      <testcase classname="fastlane.lanes" name="16: add_git_tag" time="0.026287">
-        
-      </testcase>
-    
-      
-      <testcase classname="fastlane.lanes" name="17: push_git_tags" time="0.73294">
-        
-      </testcase>
-    
-      
-      <testcase classname="fastlane.lanes" name="18: git_commit" time="0.032213">
-        
-      </testcase>
-    
-      
-      <testcase classname="fastlane.lanes" name="19: push_to_git_remote" time="0.601491">
+    " time="458.555923">
         
       </testcase>
     

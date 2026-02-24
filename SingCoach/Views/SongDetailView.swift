@@ -936,11 +936,12 @@ struct LessonsSection: View {
                     lesson.aiAnalysis = json
                     lesson.aiAnalysisDate = Date()
                 }
-                lesson.recommendedExercises = service.matchExercises(
+                lesson.recommendedExercises = service.matchAndSupplement(
                     names: result.recommendedExerciseNames,
-                    from: allExercises
+                    result: result,
+                    allExercises: allExercises
                 )
-                print("[SingCoach] Swipe-analyze done: overall=\(result.overall)")
+                print("[SingCoach] Swipe-analyze done: overall=\(result.overall), exercises=\(lesson.recommendedExercises.count)")
             } catch {
                 lesson.transcriptionStatus = TranscriptionStatus.failed.rawValue
                 print("[SingCoach] Swipe-analyze failed: \(error)")
@@ -1416,14 +1417,15 @@ struct LessonDetailSheet: View {
                     lesson.aiAnalysisDate = Date()
                 }
 
-                // Persist recommended exercises — names come directly from the LLM response.
-                // matchExercises does exact/contains lookup against the seeded exercise library.
+                // Persist recommended exercises — smart match (exact/contains/word-overlap) + supplement
+                // fills to minimum 4 exercises using weakest-scoring vocal dimensions.
                 print("[SingCoach] LLM recommended: \(result.recommendedExerciseNames.joined(separator: ", "))")
-                lesson.recommendedExercises = service.matchExercises(
+                lesson.recommendedExercises = service.matchAndSupplement(
                     names: result.recommendedExerciseNames,
-                    from: allExercises
+                    result: result,
+                    allExercises: allExercises
                 )
-                print("[SingCoach] Matched \(lesson.recommendedExercises.count)/\(result.recommendedExerciseNames.count) exercises from LLM names")
+                print("[SingCoach] Exercises after match+supplement: \(lesson.recommendedExercises.count) (LLM gave \(result.recommendedExerciseNames.count))")
 
                 try? modelContext.save()
                 analysisResult = result
@@ -1987,9 +1989,9 @@ struct AIAnalysisCard: View {
                 .padding(.vertical, 8)
 
             } else if let result = result {
-                // Score pills row
+                // Score pills row — all pills are uniform (no selected/outlined state)
                 HStack(spacing: 8) {
-                    scorePill(label: "Overall", value: result.overall, outlined: true)
+                    scorePill(label: "Overall", value: result.overall)
                     scorePill(label: "Pitch",   value: result.pitch)
                     scorePill(label: "Tone",    value: result.tone)
                     scorePill(label: "Breath",  value: result.breath)
@@ -1997,17 +1999,19 @@ struct AIAnalysisCard: View {
                 }
                 .padding(.bottom, 12)
 
-                // TLDR
+                // TLDR — content is selectable so users can copy AI feedback
                 VStack(alignment: .leading, spacing: 6) {
                     Text("TLDR")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(SingCoachTheme.textSecondary)
                         .tracking(1.2)
+                        .textSelection(.disabled)
                     Text(result.tldr)
                         .font(.system(size: 14))
                         .foregroundColor(SingCoachTheme.textPrimary)
                         .lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -2022,6 +2026,7 @@ struct AIAnalysisCard: View {
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(SingCoachTheme.textSecondary)
                             .tracking(1.2)
+                            .textSelection(.disabled)
                             .padding(.bottom, 10)
 
                         ForEach(Array(result.keyMoments.enumerated()), id: \.offset) { idx, moment in
@@ -2052,6 +2057,7 @@ struct AIAnalysisCard: View {
                                         .foregroundColor(SingCoachTheme.textPrimary)
                                         .lineSpacing(3)
                                         .fixedSize(horizontal: false, vertical: true)
+                                        .textSelection(.enabled)
                                 }
                                 .padding(.vertical, 8)
                             }
@@ -2103,7 +2109,7 @@ struct AIAnalysisCard: View {
     }
 
     @ViewBuilder
-    private func scorePill(label: String, value: Double, outlined: Bool = false) -> some View {
+    private func scorePill(label: String, value: Double) -> some View {
         let scoreColor = value >= 7.0 ? Color(hex: "#30D158") : SingCoachTheme.accent
         VStack(spacing: 3) {
             Text(String(format: value.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.1f", value))
@@ -2117,9 +2123,5 @@ struct AIAnalysisCard: View {
         .padding(.vertical, 10)
         .background(SingCoachTheme.background)
         .cornerRadius(10)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(outlined ? scoreColor : Color.clear, lineWidth: 1.5)
-        )
     }
 }

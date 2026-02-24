@@ -108,18 +108,62 @@ final class GeminiAnalysisService {
         ))
     }
 
-    private func makeProGenerator(isPerformance: Bool) -> any AITextGenerator {
+    /// Builds a `GenerativeModel` whose response is constrained to valid JSON matching the
+    /// `AIAnalysisResult` schema, with `recommendedExerciseNames` locked to the provided list.
+    private func makeProGenerator(isPerformance: Bool, exerciseNames: [String]) -> any AITextGenerator {
         if let g = proGenerator { return g }
         // Gemini 3.x preview models are only available on the global endpoint,
         // not us-central1. Must pass location: "global" explicitly.
         let ai = FirebaseAI.firebaseAI(backend: .vertexAI(location: "global"))
+        let schema = buildResponseSchema(exerciseNames: exerciseNames)
+        let config = GenerationConfig(
+            responseMIMEType: "application/json",
+            responseSchema: schema
+        )
         return FirebaseTextGenerator(model: ai.generativeModel(
             modelName: "gemini-3.1-pro-preview",
+            generationConfig: config,
             systemInstruction: ModelContent(
                 role: "system",
                 parts: isPerformance ? performanceSystemPrompt : lessonSystemPrompt
             )
         ))
+    }
+
+    /// Builds the JSON response schema for `AIAnalysisResult`.
+    /// `recommendedExerciseNames` is constrained to an enum of exact exercise names
+    /// so the model cannot hallucinate or paraphrase exercise names.
+    private func buildResponseSchema(exerciseNames: [String]) -> Schema {
+        let nameSchema: Schema = exerciseNames.isEmpty
+            ? .string()
+            : .enumeration(values: exerciseNames,
+                           description: "Exact exercise name from the provided list")
+
+        return Schema.object(
+            properties: [
+                "overall":   .double(description: "0.0–10.0 holistic score"),
+                "pitch":     .double(description: "0.0–10.0 intonation score"),
+                "tone":      .double(description: "0.0–10.0 resonance / vocal colour score"),
+                "breath":    .double(description: "0.0–10.0 breath support score"),
+                "timing":    .double(description: "0.0–10.0 rhythm and feel score"),
+                "tldr":      .string(description: "2–3 sentence summary of the performance"),
+                "keyMoments": .array(
+                    items: .object(
+                        properties: [
+                            "timestamp": .string(description: "M:SS format"),
+                            "text":      .string(description: "What happened and its vocal significance")
+                        ]
+                    ),
+                    description: "3–5 notable moments from the recording"
+                ),
+                "recommendedExerciseNames": .array(
+                    items: nameSchema,
+                    description: "4–6 exercises chosen from the provided list, covering multiple weak dimensions",
+                    minItems: 4,
+                    maxItems: 6
+                )
+            ]
+        )
     }
 
     // MARK: - Public API
@@ -167,15 +211,92 @@ final class GeminiAnalysisService {
 
     // MARK: - Match recommended names to Exercise objects
 
+    /// Basic name-based match (exact → contains → word overlap).
     func matchExercises(names: [String], from allExercises: [Exercise]) -> [Exercise] {
-        names.compactMap { name in
+        var usedIDs = Set<UUID>()
+        return names.compactMap { name in
             let lower = name.lowercased().trimmingCharacters(in: .whitespaces)
-            // Exact match first, then contains
-            return allExercises.first { $0.name.lowercased() == lower }
+            let match = allExercises.first { $0.name.lowercased() == lower && !usedIDs.contains($0.id) }
                 ?? allExercises.first {
-                    $0.name.lowercased().contains(lower) || lower.contains($0.name.lowercased())
+                    !usedIDs.contains($0.id) &&
+                    ($0.name.lowercased().contains(lower) || lower.contains($0.name.lowercased()))
                 }
+                ?? bestWordOverlapMatch(query: lower, candidates: allExercises, excluding: usedIDs)
+            if let m = match { usedIDs.insert(m.id) }
+            return match
         }
+    }
+
+    /// Smart match + supplement: matches LLM names then fills to `minimum` using
+    /// weakest-scoring vocal dimensions → category mapping.
+    func matchAndSupplement(
+        names: [String],
+        result: AIAnalysisResult,
+        allExercises: [Exercise],
+        minimum: Int = 4,
+        maximum: Int = 6
+    ) -> [Exercise] {
+        var exercises = matchExercises(names: names, from: allExercises)
+        guard exercises.count < minimum else {
+            return Array(exercises.prefix(maximum))
+        }
+
+        var usedIDs = Set(exercises.map(\.id))
+
+        // Map each vocal dimension score to the category that trains it.
+        // Lower score = higher need. Sort ascending so we fill weakest first.
+        let dimToCategories: [(score: Double, categories: [String])] = [
+            (result.breath,  ["breath"]),
+            (result.pitch,   ["pitch"]),
+            (result.tone,    ["resonance", "register"]),
+            (result.timing,  ["agility"]),
+            // warmup always helpful as a filler
+            (5.0,            ["warmup"]),
+            (6.0,            ["vowel"]),
+        ].sorted { $0.score < $1.score }
+
+        for dim in dimToCategories {
+            if exercises.count >= minimum { break }
+            for cat in dim.categories {
+                if exercises.count >= minimum { break }
+                if let ex = allExercises.first(where: { $0.category == cat && !usedIDs.contains($0.id) }) {
+                    exercises.append(ex)
+                    usedIDs.insert(ex.id)
+                }
+            }
+        }
+
+        return Array(exercises.prefix(maximum))
+    }
+
+    // MARK: - Word overlap matching helper
+
+    /// Returns the candidate whose name shares the most words with `query` (threshold ≥ 0.4).
+    private func bestWordOverlapMatch(
+        query: String,
+        candidates: [Exercise],
+        excluding: Set<UUID>
+    ) -> Exercise? {
+        let queryWords = Set(
+            query.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                 .filter { $0.count > 2 }
+        )
+        guard !queryWords.isEmpty else { return nil }
+
+        var best: (exercise: Exercise, score: Double)? = nil
+        for candidate in candidates where !excluding.contains(candidate.id) {
+            let candWords = Set(
+                candidate.name.lowercased()
+                    .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                    .filter { $0.count > 2 }
+            )
+            let overlap = Double(queryWords.intersection(candWords).count)
+            let score = overlap / Double(max(queryWords.count, candWords.count))
+            if score >= 0.4 && (best == nil || score > best!.score) {
+                best = (candidate, score)
+            }
+        }
+        return best?.exercise
     }
 
     // MARK: - Step 1: Transcription
@@ -204,7 +325,10 @@ final class GeminiAnalysisService {
         allExercises: [Exercise]
     ) async throws -> AIAnalysisResult {
 
-        let generator = makeProGenerator(isPerformance: isPerformance)
+        let exerciseNames = allExercises.map(\.name)
+        // Model is created with a response schema that constrains recommendedExerciseNames
+        // to exactly the exercise names in the library — no fuzzy matching needed.
+        let generator = makeProGenerator(isPerformance: isPerformance, exerciseNames: exerciseNames)
 
         let exerciseList = allExercises.isEmpty
             ? "(no exercises in library yet)"
@@ -261,73 +385,49 @@ final class GeminiAnalysisService {
         You will receive a timestamped transcript of the recording.
 
         Evaluate these five dimensions on a 0.0–10.0 scale:
-        • pitch (intonation accuracy, staying on note, interval accuracy)
-        • tone (resonance, warmth, consistency of vocal colour)
-        • breath (support, phrase length, control, tension signs)
-        • timing (rhythm, feel, phrasing groove)
-        • overall (holistic impression — weighted by pitch and tone)
+        • pitch  — intonation accuracy, staying on note, interval accuracy
+        • tone   — resonance, warmth, consistency of vocal colour
+        • breath — support, phrase length, control, tension signs
+        • timing — rhythm, feel, phrasing groove
+        • overall — holistic impression, weighted toward pitch and tone
 
         Scoring guide:
-          8–10 Professional or near-professional quality
-          6–7  Developing singer with solid technique emerging
-          4–5  Amateur with clear fundamentals but significant rough edges
-          1–3  Foundational technical issues across multiple areas
+          8–10  Professional or near-professional quality
+          6–7   Developing singer with solid technique emerging
+          4–5   Amateur with clear fundamentals but significant rough edges
+          1–3   Foundational technical issues across multiple areas
 
-        Respond ONLY with a JSON object matching this exact schema (no markdown, no extra keys):
-        {
-          "overall": <number 0.0–10.0>,
-          "pitch": <number 0.0–10.0>,
-          "tone": <number 0.0–10.0>,
-          "breath": <number 0.0–10.0>,
-          "timing": <number 0.0–10.0>,
-          "tldr": "<2–3 sentences: biggest strength, clearest area to work on, and the single most impactful drill>",
-          "keyMoments": [
-            {"timestamp": "<M:SS>", "text": "<what happened and its vocal significance>"}
-          ],
-          "recommendedExerciseNames": ["<exact name from list>", ...]
-        }
-
-        keyMoments: include 3–5 moments (both positives and issues). Reference timestamps from the transcript.
-        recommendedExerciseNames: recommend 3–5 exercises by EXACT name from the list provided.
+        tldr: 2–3 sentences — biggest strength, clearest area to improve, and the single most impactful drill.
+        keyMoments: 3–5 timestamped moments (both positives and issues).
+        recommendedExerciseNames: choose 4–6 exercises from the provided list that cover the weakest dimensions. \
+        If breath, pitch, and tone all need work, include at least one exercise per area. \
+        Do not cluster all picks into one category.
         """
     }
 
     private var lessonSystemPrompt: String {
         """
         You are an expert vocal coach analysing a student's singing lesson from a transcript.
-        The transcript contains both teacher instruction and student singing. \
+        The transcript contains both teacher instruction and student singing.
         Base ALL scores ONLY on the student's actual singing — exclude teacher demonstrations.
 
         Evaluate these five dimensions on a 0.0–10.0 scale:
-        • pitch (intonation accuracy in exercises and song attempts)
-        • tone (resonance and quality when student sings)
-        • breath (support and control during student's singing)
-        • timing (rhythm and feel in student's singing)
-        • overall (holistic impression of student's current level)
+        • pitch  — intonation accuracy in exercises and song attempts
+        • tone   — resonance and quality when the student sings
+        • breath — support and control during the student's singing
+        • timing — rhythm and feel in the student's singing
+        • overall — holistic impression of the student's current level
 
         Scoring guide (student's singing only):
-          8–10 Strong technique emerging clearly, taking coaching well
-          6–7  Showing improvement and responding to exercises
-          4–5  Early stage, fundamentals present but inconsistent
-          1–3  Foundational issues across multiple dimensions
+          8–10  Strong technique emerging clearly, taking coaching well
+          6–7   Showing improvement and responding to exercises
+          4–5   Early stage, fundamentals present but inconsistent
+          1–3   Foundational issues across multiple dimensions
 
-        Respond ONLY with a JSON object matching this exact schema (no markdown, no extra keys):
-        {
-          "overall": <number 0.0–10.0>,
-          "pitch": <number 0.0–10.0>,
-          "tone": <number 0.0–10.0>,
-          "breath": <number 0.0–10.0>,
-          "timing": <number 0.0–10.0>,
-          "tldr": "<2–3 sentences: the root cause issue the lesson revealed, what showed progress, and the #1 drill to practise before the next lesson>",
-          "keyMoments": [
-            {"timestamp": "<M:SS>", "text": "<what happened — exercise, breakthrough, or persistent issue — and its significance>"}
-          ],
-          "recommendedExerciseNames": ["<exact name from list>", ...]
-        }
-
-        keyMoments: include 4–6 moments covering both the exercises covered and notable student moments.
-        recommendedExerciseNames: recommend 3–5 exercises by EXACT name from the list provided, \
-        prioritising what the lesson content revealed the student needs most.
+        tldr: 2–3 sentences — root cause issue the lesson revealed, what showed progress, and the #1 drill to practise before the next lesson.
+        keyMoments: 4–6 timestamped moments covering exercises, breakthroughs, and persistent issues.
+        recommendedExerciseNames: choose 4–6 exercises from the provided list that cover the weakest dimensions. \
+        Do not cluster all picks into one category.
         """
     }
 
