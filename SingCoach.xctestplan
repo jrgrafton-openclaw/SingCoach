@@ -19,7 +19,8 @@
       "selectedTests" : [
         "GeminiModelReachabilityTests/testFlashModelReachable",
         "GeminiModelReachabilityTests/testPro31ModelReachable",
-        "GeminiModelReachabilityTests/testBothModelsReachable"
+        "GeminiModelReachabilityTests/testBothModelsReachable",
+        "YouTubeEmbedIntegrationTests/testEmbedLoadsWithoutError"
       ]
     }
   ],

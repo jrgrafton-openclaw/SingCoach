@@ -29,6 +29,7 @@
 		3BC0C6756FDE4D5CADD98997 /* GeminiAnalysisTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD0531FD3C8444A9CE7A8CE /* GeminiAnalysisTests.swift */; };
 		9B16B4142F714238BE165C86 /* GeminiAnalysisNetworkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDA462E4EBD24EB8AB4806DD /* GeminiAnalysisNetworkTests.swift */; };
 		12E907ADF0E64ED2BD7317D9 /* GeminiIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81FA82C41754403C8CAAEB43 /* GeminiIntegrationTests.swift */; };
+		7BD00AF500F14DC08D8F39A5 /* YouTubeEmbedIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AA698A99A8541ADB7B436B3 /* YouTubeEmbedIntegrationTests.swift */; };
 		BF5589D609124B9792BDC4E5 /* test-vocal-15s.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E7A0DDDD0B3D4A17BCDE5E1B /* test-vocal-15s.m4a */; };
 		7ABBF23091F8DF4646DB6F08 /* SingCoachTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F78FCB56312F8A7684DB52 /* SingCoachTheme.swift */; };
 		7C431D55FC6EAB30637F5D08 /* ExerciseSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4485C00614BD8C5DF6E2C9 /* ExerciseSeeder.swift */; };
@@ -73,6 +74,7 @@
 		3DD0531FD3C8444A9CE7A8CE /* GeminiAnalysisTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiAnalysisTests.swift; sourceTree = "<group>"; };
 		DDA462E4EBD24EB8AB4806DD /* GeminiAnalysisNetworkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiAnalysisNetworkTests.swift; sourceTree = "<group>"; };
 		81FA82C41754403C8CAAEB43 /* GeminiIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiIntegrationTests.swift; sourceTree = "<group>"; };
+		1AA698A99A8541ADB7B436B3 /* YouTubeEmbedIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeEmbedIntegrationTests.swift; sourceTree = "<group>"; };
 		E7A0DDDD0B3D4A17BCDE5E1B /* test-vocal-15s.m4a */ = {isa = PBXFileReference; lastKnownFileType = audio.m4a; path = "test-vocal-15s.m4a"; sourceTree = "<group>"; };
 		40ED05EB329038D57C43C1EC /* AudioRecordingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingService.swift; sourceTree = "<group>"; };
 		43E697C3229345C7A8B4FBD0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -154,6 +156,7 @@
 				3DD0531FD3C8444A9CE7A8CE /* GeminiAnalysisTests.swift */,
 				DDA462E4EBD24EB8AB4806DD /* GeminiAnalysisNetworkTests.swift */,
 				81FA82C41754403C8CAAEB43 /* GeminiIntegrationTests.swift */,
+				1AA698A99A8541ADB7B436B3 /* YouTubeEmbedIntegrationTests.swift */,
 				433A302A65774A94BCDBED6F /* Resources */,
 			);
 			path = SingCoachTests;
@@ -391,6 +394,7 @@
 				3BC0C6756FDE4D5CADD98997 /* GeminiAnalysisTests.swift in Sources */,
 				9B16B4142F714238BE165C86 /* GeminiAnalysisNetworkTests.swift in Sources */,
 				12E907ADF0E64ED2BD7317D9 /* GeminiIntegrationTests.swift in Sources */,
+				7BD00AF500F14DC08D8F39A5 /* YouTubeEmbedIntegrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

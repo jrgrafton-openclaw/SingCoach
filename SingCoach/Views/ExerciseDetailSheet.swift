@@ -161,6 +161,12 @@ struct YouTubeWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         guard let videoID = extractVideoID(from: urlString) else { return }
+        let (html, baseURL) = YouTubeWebView.embedHTML(for: videoID)
+        webView.loadHTMLString(html, baseURL: baseURL)
+    }
+
+    /// Exposed for testing — returns the embed HTML and baseURL for a given video ID.
+    static func embedHTML(for videoID: String) -> (html: String, baseURL: URL?) {
         // origin= must match the baseURL domain — both set to youtube-nocookie.com
         let embedURL = "https://www.youtube-nocookie.com/embed/\(videoID)?playsinline=1&rel=0&enablejsapi=1&origin=https://www.youtube-nocookie.com"
         let html = """
@@ -184,7 +190,7 @@ struct YouTubeWebView: UIViewRepresentable {
         </html>
         """
         // baseURL matches the origin= parameter above — player sees a consistent trusted origin
-        webView.loadHTMLString(html, baseURL: URL(string: "https://www.youtube-nocookie.com"))
+        return (html, URL(string: "https://www.youtube-nocookie.com"))
     }
 
     private func extractVideoID(from urlString: String) -> String? {
