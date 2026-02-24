@@ -1,0 +1,35 @@
+{
+  "configurations" : [
+    {
+      "id" : "1B2A3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D",
+      "name" : "Integration",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SINGCOACH_INTEGRATION",
+            "value" : "1"
+          }
+        ]
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true,
+    "defaultTestExecutionTimeAllowance" : 60
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:SingCoach.xcodeproj",
+        "identifier" : "SingCoachTests",
+        "name" : "SingCoachTests"
+      },
+      "selectedTests" : [
+        "GeminiModelReachabilityTests/testFlashModelReachable",
+        "GeminiModelReachabilityTests/testPro31ModelReachable",
+        "GeminiModelReachabilityTests/testBothModelsReachable"
+      ]
+    }
+  ],
+  "version" : 1
+}

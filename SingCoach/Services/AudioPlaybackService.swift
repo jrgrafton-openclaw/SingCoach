@@ -76,6 +76,16 @@ final class AudioPlaybackService: NSObject, ObservableObject, AudioPlayerProtoco
             print("[SingCoach] AudioPlayer: play() called but player is nil")
             return
         }
+        // Set .playback category so audio works in silent/DND mode, like podcast apps.
+        // Default category (.soloAmbient) respects the mute switch and silences us.
+        // Must do this before play() — session category changes take effect immediately.
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default)
+            try session.setActive(true)
+        } catch {
+            print("[SingCoach] AudioPlayer: failed to set session category: \(error)")
+        }
         audioPlayer.play()
         isPlaying = true
         startTimer()

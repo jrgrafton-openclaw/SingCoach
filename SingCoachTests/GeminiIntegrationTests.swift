@@ -5,9 +5,11 @@
 //   In Xcode: Edit Scheme → Test → Arguments → Environment Variables
 //   Add: SINGCOACH_INTEGRATION = 1
 //
-//   Or from command line:
-//   xcodebuild test -scheme SingCoach -destination 'platform=iOS Simulator,...' \
-//     SINGCOACH_INTEGRATION=1
+//   From command line (TEST_RUNNER_ prefix forwards env vars to the test process):
+//   xcodebuild test -scheme SingCoach \
+//     -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+//     -only-testing:SingCoachTests/GeminiModelReachabilityTests \
+//     TEST_RUNNER_SINGCOACH_INTEGRATION=1
 //
 // These tests make real HTTP calls to Vertex AI — they cost tokens and require
 // an active network connection. Do NOT run in CI.
