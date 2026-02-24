@@ -80,12 +80,9 @@ final class GeminiModelReachabilityTests: IntegrationTestCase {
 
 final class GeminiFullPipelineIntegrationTests: IntegrationTestCase {
 
-    // ⚠️ Requires a real audio file — the stub m4a below is not valid.
-    // To run this properly: record a few seconds in the app, copy the .m4a path,
-    // and replace `writeMinimalAudio()` with a bundle resource.
-    // For now this test is skipped until a real audio fixture is added.
+    // ✅ End-to-end test using the real 15-second vocal fixture in the test bundle.
+    // Exercises the full Flash → Pro 3.1 pipeline on real audio.
     func testFullPipelineWithTinyAudio() async throws {
-        throw XCTSkip("Needs a real audio fixture — stub m4a is not a valid recording")
         // Write a minimal valid m4a to the Lessons directory
         let audioURL = try writeMinimalAudio()
         defer { try? FileManager.default.removeItem(at: audioURL) }
@@ -115,24 +112,19 @@ final class GeminiFullPipelineIntegrationTests: IntegrationTestCase {
         XCTAssertFalse(result.tldr.isEmpty, "TLDR should not be empty")
     }
 
-    /// Writes a minimal valid (but silent) .m4a file to the Lessons directory.
-    /// Uses a pre-encoded 1-second silent m4a in base64 so we don't need AVFoundation.
+    /// Copies the bundled 15-second vocal fixture into the app's Lessons directory.
+    /// Returns the URL of the copy (caller is responsible for cleanup).
     private func writeMinimalAudio() throws -> URL {
-        // 1-second silent AAC/M4A, base64-encoded (ftyp + mdat with silence)
-        // Generated offline; small enough to keep tests fast.
-        let silentM4ABase64 = """
-        AAAAIGZ0eXBNNEEgAAAAAE00QSBpc29tAAAAAAAAAA==
-        """
-        // Note: this is a stub — in practice, use a real small audio file committed
-        // to the test bundle, or generate silence via AVAudioEngine in setUp.
-        // For now, write whatever bytes we have; Flash will return a short/empty transcript.
-        let data = Data(base64Encoded: silentM4ABase64.replacingOccurrences(of: "\n", with: "")) ?? Data(repeating: 0, count: 128)
-
+        let bundle = Bundle(for: GeminiFullPipelineIntegrationTests.self)
+        let fixtureURL = try XCTUnwrap(
+            bundle.url(forResource: "test-vocal-15s", withExtension: "m4a"),
+            "test-vocal-15s.m4a not found in test bundle — check Resources target membership"
+        )
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let dir = docs.appendingPathComponent("Lessons")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent("integration-test-\(UUID().uuidString).m4a")
-        try data.write(to: url)
-        return url
+        let dest = dir.appendingPathComponent("integration-test-\(UUID().uuidString).m4a")
+        try FileManager.default.copyItem(at: fixtureURL, to: dest)
+        return dest
     }
 }
