@@ -110,7 +110,9 @@ final class GeminiAnalysisService {
 
     private func makeProGenerator(isPerformance: Bool) -> any AITextGenerator {
         if let g = proGenerator { return g }
-        let ai = FirebaseAI.firebaseAI(backend: .vertexAI())
+        // Gemini 3.x preview models are only available on the global endpoint,
+        // not us-central1. Must pass location: "global" explicitly.
+        let ai = FirebaseAI.firebaseAI(backend: .vertexAI(location: "global"))
         return FirebaseTextGenerator(model: ai.generativeModel(
             modelName: "gemini-3.1-pro-preview",
             systemInstruction: ModelContent(
