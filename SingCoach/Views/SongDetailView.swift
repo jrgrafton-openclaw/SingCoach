@@ -1279,30 +1279,33 @@ struct LessonDetailSheet: View {
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                             }
 
-                            // Analyze button
-                            Divider().background(SingCoachTheme.textSecondary.opacity(0.2))
-                            Button { runAnalysis() } label: {
-                                if isAnalyzing {
-                                    HStack(spacing: 6) {
-                                        ProgressView().scaleEffect(0.8)
-                                        Text("Analysing…")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(SingCoachTheme.textSecondary)
+                            // Analyze button — only shown when no analysis exists yet.
+                            // Once analysis is present, use Re-analyze in the AIAnalysisCard header.
+                            if lesson.aiAnalysis == nil {
+                                Divider().background(SingCoachTheme.textSecondary.opacity(0.2))
+                                Button { runAnalysis() } label: {
+                                    if isAnalyzing {
+                                        HStack(spacing: 6) {
+                                            ProgressView().scaleEffect(0.8)
+                                            Text("Analysing…")
+                                                .font(.system(size: 14))
+                                                .foregroundColor(SingCoachTheme.textSecondary)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                    } else {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "sparkles")
+                                                .font(.system(size: 14))
+                                            Text("Analyze")
+                                                .font(.system(size: 14, weight: .medium))
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .foregroundColor(SingCoachTheme.accent)
                                     }
-                                    .frame(maxWidth: .infinity)
-                                } else {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "sparkles")
-                                            .font(.system(size: 14))
-                                        Text(lesson.aiAnalysis != nil ? "Re-analyze" : "Analyze")
-                                            .font(.system(size: 14, weight: .medium))
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .foregroundColor(SingCoachTheme.accent)
                                 }
+                                .disabled(isAnalyzing)
+                                .padding(.top, 2)
                             }
-                            .disabled(isAnalyzing)
-                            .padding(.top, 2)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 16)
@@ -1315,7 +1318,8 @@ struct LessonDetailSheet: View {
                             result: analysisResult,
                             isAnalyzing: isAnalyzing,
                             errorMessage: analysisError,
-                            onAnalyze: { runAnalysis() }
+                            onAnalyze: { runAnalysis() },
+                            onSeekTo: { seconds in player.seek(to: seconds) }
                         )
                         .padding(.horizontal, 16)
 
@@ -1412,11 +1416,14 @@ struct LessonDetailSheet: View {
                     lesson.aiAnalysisDate = Date()
                 }
 
-                // Persist recommended exercises
+                // Persist recommended exercises — names come directly from the LLM response.
+                // matchExercises does exact/contains lookup against the seeded exercise library.
+                print("[SingCoach] LLM recommended: \(result.recommendedExerciseNames.joined(separator: ", "))")
                 lesson.recommendedExercises = service.matchExercises(
                     names: result.recommendedExerciseNames,
                     from: allExercises
                 )
+                print("[SingCoach] Matched \(lesson.recommendedExercises.count)/\(result.recommendedExerciseNames.count) exercises from LLM names")
 
                 try? modelContext.save()
                 analysisResult = result
@@ -1926,8 +1933,19 @@ struct AIAnalysisCard: View {
     let isAnalyzing: Bool
     let errorMessage: String?
     let onAnalyze: () -> Void
+    var onSeekTo: ((TimeInterval) -> Void)? = nil  // seek player to timestamp on moment tap
 
     private let aiGreen = Color(hex: "#30D158")
+
+    /// Parse "m:ss" or "h:mm:ss" timestamp string to TimeInterval
+    private func parseTimestamp(_ ts: String) -> TimeInterval? {
+        let parts = ts.split(separator: ":").compactMap { Double($0) }
+        switch parts.count {
+        case 2: return parts[0] * 60 + parts[1]
+        case 3: return parts[0] * 3600 + parts[1] * 60 + parts[2]
+        default: return nil
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -2007,23 +2025,38 @@ struct AIAnalysisCard: View {
                             .padding(.bottom, 10)
 
                         ForEach(Array(result.keyMoments.enumerated()), id: \.offset) { idx, moment in
-                            HStack(alignment: .top, spacing: 12) {
-                                Text(moment.timestamp)
-                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                    .foregroundColor(SingCoachTheme.accent)
+                            let seekSeconds = parseTimestamp(moment.timestamp)
+                            let canSeek = onSeekTo != nil && seekSeconds != nil
+                            Button {
+                                if let secs = seekSeconds { onSeekTo?(secs) }
+                            } label: {
+                                HStack(alignment: .top, spacing: 12) {
+                                    HStack(spacing: 4) {
+                                        Text(moment.timestamp)
+                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                            .foregroundColor(SingCoachTheme.accent)
+                                        if canSeek {
+                                            Image(systemName: "arrow.right.circle.fill")
+                                                .font(.system(size: 10))
+                                                .foregroundColor(SingCoachTheme.accent.opacity(0.7))
+                                        }
+                                    }
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(SingCoachTheme.accent.opacity(0.15))
+                                    .background(SingCoachTheme.accent.opacity(canSeek ? 0.2 : 0.1))
                                     .cornerRadius(6)
                                     .fixedSize()
 
-                                Text(moment.text)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(SingCoachTheme.textPrimary)
-                                    .lineSpacing(3)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                    Text(moment.text)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(SingCoachTheme.textPrimary)
+                                        .lineSpacing(3)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .padding(.vertical, 8)
                             }
-                            .padding(.vertical, 8)
+                            .buttonStyle(.plain)
+                            .disabled(!canSeek)
 
                             if idx < result.keyMoments.count - 1 {
                                 Divider().background(SingCoachTheme.textSecondary.opacity(0.15))

@@ -61,4 +61,10 @@ final class Song {
     var mostRecentLesson: Lesson? {
         lessons.filter { !$0.isPerformance }.sorted { $0.date > $1.date }.first
     }
+
+    /// Most recent recording of ANY type (lesson or performance) that has AI-recommended exercises.
+    /// Used by PracticeView so performance recordings also populate the practice tab.
+    var mostRecentRecordingWithExercises: Lesson? {
+        lessons.sorted { $0.date > $1.date }.first { !$0.recommendedExercises.isEmpty }
+    }
 }

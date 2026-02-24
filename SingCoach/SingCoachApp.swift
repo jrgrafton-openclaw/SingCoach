@@ -18,7 +18,7 @@ struct SingCoachApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .modelContainer(for: [Song.self, Lesson.self, Exercise.self, LyricsLine.self]) { result in
+                .modelContainer(for: [Song.self, Lesson.self, Exercise.self, LyricsLine.self, PracticeEntry.self]) { result in
                     // BUG 3 FIX: Seed exercises AFTER the ModelContainer is fully ready
                     switch result {
                     case .success(let container):
