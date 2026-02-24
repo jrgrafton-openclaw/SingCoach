@@ -1,15 +1,14 @@
 // GeminiIntegrationTests.swift
 // Real Firebase integration tests — skipped unless SINGCOACH_INTEGRATION=1 is set.
 //
-// HOW TO RUN:
-//   In Xcode: Edit Scheme → Test → Arguments → Environment Variables
-//   Add: SINGCOACH_INTEGRATION = 1
+// HOW TO RUN (the test plan acts as the gate — no env var needed):
 //
-//   From command line (TEST_RUNNER_ prefix forwards env vars to the test process):
+//   From command line:
 //   xcodebuild test -scheme SingCoach \
 //     -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-//     -only-testing:SingCoachTests/GeminiModelReachabilityTests \
-//     TEST_RUNNER_SINGCOACH_INTEGRATION=1
+//     -testPlan SingCoach
+//
+//   In Xcode: Product → Test Plan → SingCoach
 //
 // These tests make real HTTP calls to Vertex AI — they cost tokens and require
 // an active network connection. Do NOT run in CI.
@@ -24,11 +23,9 @@ import FirebaseCore
 class IntegrationTestCase: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
-        guard ProcessInfo.processInfo.environment["SINGCOACH_INTEGRATION"] == "1" else {
-            throw XCTSkip("Set SINGCOACH_INTEGRATION=1 to run integration tests")
-        }
-        // FirebaseApp.configure() is normally called in the app delegate.
-        // For tests, configure once if not already done.
+        // No skip guard — the SingCoach.xctestplan's selectedTests acts as the gate.
+        // These tests only run when you explicitly use: -testPlan SingCoach
+        // Regular `xcodebuild test` (no test plan) will not include them.
         if FirebaseApp.app() == nil {
             FirebaseApp.configure()
         }
@@ -83,13 +80,12 @@ final class GeminiModelReachabilityTests: IntegrationTestCase {
 
 final class GeminiFullPipelineIntegrationTests: IntegrationTestCase {
 
-    // ✅ End-to-end test using a real (tiny) audio file.
-    // Drops a 1-second silent m4a into the Lessons directory, runs the full
-    // analyze() pipeline, and checks the response shape is valid.
-    //
-    // A 1-second silent recording will produce a sparse/minimal transcript and
-    // low scores — that's fine. We're testing the plumbing, not the model quality.
+    // ⚠️ Requires a real audio file — the stub m4a below is not valid.
+    // To run this properly: record a few seconds in the app, copy the .m4a path,
+    // and replace `writeMinimalAudio()` with a bundle resource.
+    // For now this test is skipped until a real audio fixture is added.
     func testFullPipelineWithTinyAudio() async throws {
+        throw XCTSkip("Needs a real audio fixture — stub m4a is not a valid recording")
         // Write a minimal valid m4a to the Lessons directory
         let audioURL = try writeMinimalAudio()
         defer { try? FileManager.default.removeItem(at: audioURL) }
