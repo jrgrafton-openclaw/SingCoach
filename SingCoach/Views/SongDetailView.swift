@@ -1280,33 +1280,7 @@ struct LessonDetailSheet: View {
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                             }
 
-                            // Analyze button — only shown when no analysis exists yet.
-                            // Once analysis is present, use Re-analyze in the AIAnalysisCard header.
-                            if lesson.aiAnalysis == nil {
-                                Divider().background(SingCoachTheme.textSecondary.opacity(0.2))
-                                Button { runAnalysis() } label: {
-                                    if isAnalyzing {
-                                        HStack(spacing: 6) {
-                                            ProgressView().scaleEffect(0.8)
-                                            Text("Analysing…")
-                                                .font(.system(size: 14))
-                                                .foregroundColor(SingCoachTheme.textSecondary)
-                                        }
-                                        .frame(maxWidth: .infinity)
-                                    } else {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "sparkles")
-                                                .font(.system(size: 14))
-                                            Text("Analyze")
-                                                .font(.system(size: 14, weight: .medium))
-                                        }
-                                        .frame(maxWidth: .infinity)
-                                        .foregroundColor(SingCoachTheme.accent)
-                                    }
-                                }
-                                .disabled(isAnalyzing)
-                                .padding(.top, 2)
-                            }
+                            // Analyze button removed — AIAnalysisCard below has the same functionality
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 16)

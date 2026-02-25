@@ -77,6 +77,18 @@ struct SongsListView: View {
 struct SongRowView: View {
     let song: Song
 
+    /// Subtitle like "2 lessons · 1 performance" based on recordingType.
+    private var recordingSubtitle: String? {
+        guard !song.lessons.isEmpty else { return nil }
+        let lessonCount = song.lessons.filter { !$0.isPerformance }.count
+        let perfCount   = song.lessons.filter {  $0.isPerformance }.count
+        let parts: [String] = [
+            lessonCount > 0 ? "\(lessonCount) \(lessonCount == 1 ? "lesson" : "lessons")" : nil,
+            perfCount   > 0 ? "\(perfCount) \(perfCount   == 1 ? "performance" : "performances")" : nil
+        ].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             // Show artwork if available, placeholder otherwise
@@ -108,14 +120,8 @@ struct SongRowView: View {
                     .font(.system(size: 13))
                     .foregroundColor(SingCoachTheme.textSecondary)
                     .lineLimit(1)
-                if !song.lessons.isEmpty {
-                    let lessonCount = song.lessons.filter { !$0.isPerformance }.count
-                    let perfCount   = song.lessons.filter {  $0.isPerformance }.count
-                    let parts: [String] = [
-                        lessonCount > 0 ? "\(lessonCount) \(lessonCount == 1 ? "lesson" : "lessons")" : nil,
-                        perfCount   > 0 ? "\(perfCount) \(perfCount   == 1 ? "performance" : "performances")" : nil
-                    ].compactMap { $0 }
-                    Text(parts.joined(separator: " · "))
+                if let subtitle = recordingSubtitle {
+                    Text(subtitle)
                         .font(.system(size: 11))
                         .foregroundColor(SingCoachTheme.accent)
                 }

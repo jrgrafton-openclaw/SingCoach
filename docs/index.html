@@ -1,583 +1,469 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SingCoach - Practice Tools Mockup</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
-        :root {
-            --bg-primary: #000000;
-            --bg-secondary: #1c1c1e;
-            --bg-tertiary: #2c2c2e;
-            --label: #8e8e93;
-            --text: #ffffff;
-            --accent: #f59e0b;
-            --accent-dim: rgba(245, 158, 11, 0.15);
-            --green: #30d158;
-            --red: #ff453a;
-            --separator: rgba(84, 84, 88, 0.65);
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-            background: #000;
-            min-height: 100vh;
-            padding: 20px;
-            -webkit-font-smoothing: antialiased;
-        }
-        
-        .phone-frame {
-            max-width: 393px;
-            margin: 0 auto;
-            background: var(--bg-primary);
-            border-radius: 40px;
-            overflow: hidden;
-            box-shadow: 0 25px 80px rgba(0,0,0,0.5);
-        }
-        
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 14px 27px 8px;
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-        }
-        
-        .nav-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 20px 12px;
-        }
-        
-        .nav-title {
-            color: white;
-            font-size: 17px;
-            font-weight: 600;
-            text-align: center;
-            flex: 1;
-        }
-        
-        .nav-btn {
-            color: var(--accent);
-            font-size: 17px;
-            font-weight: 400;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-family: inherit;
-        }
-        
-        .content {
-            padding: 0 0 200px;
-        }
-        
-        .header-tags {
-            display: flex;
-            gap: 8px;
-            padding: 0 20px;
-            margin-bottom: 12px;
-        }
-        
-        .tag {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .tag-pitch {
-            background: transparent;
-            border: 1px solid #a78bfa;
-            color: #a78bfa;
-        }
-        
-        .tag-difficulty {
-            background: #7c3aed;
-            color: white;
-        }
-        
-        .tag-duration {
-            color: var(--label);
-            font-size: 13px;
-        }
-        
-        .exercise-title {
-            color: white;
-            font-size: 28px;
-            font-weight: 700;
-            line-height: 1.2;
-            padding: 0 20px;
-            margin-bottom: 4px;
-        }
-        
-        .exercise-subtitle {
-            color: #a78bfa;
-            font-size: 15px;
-            padding: 0 20px;
-            margin-bottom: 24px;
-        }
-        
-        .section-header {
-            color: var(--label);
-            font-size: 13px;
-            font-weight: 400;
-            text-transform: uppercase;
-            letter-spacing: -0.08px;
-            padding: 24px 20px 8px;
-        }
-        
-        .card {
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            margin: 0 20px 12px;
-            padding: 16px;
-        }
-        
-        .card-title {
-            color: var(--label);
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-        
-        .card-text {
-            color: white;
-            font-size: 15px;
-            line-height: 1.4;
-        }
-        
-        .tip-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-        
-        .tip-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .tip-icon {
-            color: var(--accent);
-            font-size: 14px;
-            margin-top: 1px;
-            flex-shrink: 0;
-        }
-        
-        .video-thumbnail {
-            position: relative;
-            background: #0f0f0f;
-            border-radius: 12px;
-            overflow: hidden;
-            aspect-ratio: 16/9;
-            margin: 0 20px;
-        }
-        
-        .play-btn {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 60px;
-            height: 60px;
-            background: rgba(255,0,0,0.9);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .play-btn::after {
-            content: '';
-            border-left: 20px solid white;
-            border-top: 12px solid transparent;
-            border-bottom: 12px solid transparent;
-            margin-left: 4px;
-        }
-        
-        .video-label {
-            position: absolute;
-            bottom: 12px;
-            left: 12px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-        }
-        
-        /* Bottom Tools Panel - iOS Inset Grouped Style */
-        .tools-panel {
-            position: fixed;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 393px;
-            background: var(--bg-primary);
-            padding: 16px 20px 34px;
-            box-shadow: 0 -3px 20px rgba(0,0,0,0.4);
-        }
-        
-        .tools-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 16px;
-        }
-        
-        .tools-panel-title {
-            color: white;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        
-        .tools-panel-subtitle {
-            color: var(--label);
-            font-size: 13px;
-        }
-        
-        /* iOS Inset List Style */
-        .tools-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .tool-row {
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        
-        .tool-row-inner {
-            display: flex;
-            align-items: center;
-            padding: 14px 16px;
-        }
-        
-        .tool-icon-wrapper {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: var(--bg-tertiary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            margin-right: 14px;
-            flex-shrink: 0;
-        }
-        
-        .tool-row.active .tool-icon-wrapper {
-            background: var(--accent-dim);
-        }
-        
-        .tool-content {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .tool-name {
-            color: white;
-            font-size: 15px;
-            font-weight: 500;
-        }
-        
-        .tool-value {
-            color: var(--accent);
-            font-size: 15px;
-            font-weight: 500;
-            font-variant-numeric: tabular-nums;
-        }
-        
-        .tool-action {
-            flex-shrink: 0;
-        }
-        
-        .action-btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all 0.2s;
-        }
-        
-        .btn-primary {
-            background: var(--accent);
-            color: black;
-        }
-        
-        .btn-secondary {
-            background: var(--bg-tertiary);
-            color: white;
-        }
-        
-        .btn-danger {
-            background: rgba(255, 69, 58, 0.15);
-            color: var(--red);
-        }
-        
-        /* Expanded Pitch Reference */
-        .tool-expanded {
-            padding: 0 16px 16px;
-            display: none;
-        }
-        
-        .tool-row.expanded .tool-expanded {
-            display: block;
-        }
-        
-        .pitch-slider-wrapper {
-            margin-top: 8px;
-        }
-        
-        .pitch-slider-labels {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-        
-        .pitch-note-label {
-            color: var(--accent);
-            font-size: 13px;
-            font-weight: 600;
-        }
-        
-        .pitch-range-label {
-            color: var(--label);
-            font-size: 12px;
-        }
-        
-        .pitch-slider {
-            width: 100%;
-            -webkit-appearance: none;
-            height: 28px;
-            background: transparent;
-            cursor: pointer;
-        }
-        
-        .pitch-slider::-webkit-slider-runnable-track {
-            height: 4px;
-            background: var(--bg-tertiary);
-            border-radius: 2px;
-        }
-        
-        .pitch-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: var(--accent);
-            margin-top: -10px;
-            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
-        }
-        
-        .pitch-freq {
-            text-align: center;
-            color: var(--label);
-            font-size: 12px;
-            margin-top: 8px;
-        }
-        
-        /* Pitch Detector */
-        .pitch-detector-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-top: 8px;
-            padding-top: 12px;
-            border-top: 1px solid var(--separator);
-        }
-        
-        .detector-note {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--green);
-            font-variant-numeric: tabular-nums;
-            min-width: 60px;
-        }
-        
-        .detector-cents {
-            font-size: 14px;
-            color: var(--label);
-        }
-        
-        .detector-indicator {
-            flex: 1;
-            height: 6px;
-            background: var(--bg-tertiary);
-            border-radius: 3px;
-            position: relative;
-        }
-        
-        .detector-indicator-fill {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            width: 4px;
-            height: 100%;
-            background: var(--green);
-            border-radius: 2px;
-            transform: translateX(-50%);
-            transition: left 0.1s;
-        }
-        
-        .detector-indicator-center {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            width: 1px;
-            height: 100%;
-            background: rgba(255,255,255,0.2);
-            transform: translateX(-50%);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SingCoach Practice Pro v2</title>
+<style>
+  :root {
+    --bg-main: #0a0a0c;
+    --sheet-bg: rgba(28, 28, 30, 0.85);
+    --accent: #FF9F0A; 
+    --text-primary: #FFFFFF;
+    --text-secondary: #EBEBF599; 
+    --system-green: #32D74B;
+    --system-red: #FF453A;
+    --fill-tertiary: rgba(118, 118, 128, 0.24);
+  }
 
-        .tool-row-header {
-            display: flex;
-            align-items: center;
-            flex: 1;
-            min-width: 0;
-        }
-    </style>
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Hardware Frame */
+  .device-frame {
+    width: 390px;
+    height: 844px;
+    background-color: var(--bg-main);
+    border-radius: 44px; 
+    border: 12px solid #1a1a1a;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+
+  /* Dimmed Background */
+  .lesson-content {
+    padding: 60px 20px 20px;
+    opacity: 0.4; 
+  }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: var(--accent); font-size: 15px; font-weight: 500; margin-top: 0; }
+  .skeleton-text { height: 12px; background: #2c2c2e; border-radius: 6px; margin-bottom: 12px; }
+  .skeleton-text.short { width: 60%; }
+
+  /* Bottom Sheet */
+  .practice-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--sheet-bg);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-top-left-radius: 32px;
+    border-top-right-radius: 32px;
+    padding: 12px 24px 40px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    border-top: 0.5px solid rgba(255,255,255,0.15);
+  }
+
+  .grabber {
+    width: 36px;
+    height: 5px;
+    background-color: rgba(235, 235, 245, 0.3);
+    border-radius: 3px;
+    margin: 0 auto 24px auto;
+  }
+
+  /* --- Advanced Tuner Display --- */
+  .tuner-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 24px;
+    height: 120px; /* Fixed height to prevent jumping */
+  }
+  
+  .pitch-readout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 12px;
+  }
+  
+  .current-note {
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    color: var(--text-primary);
+    width: 120px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .cents-display {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-top: -8px;
+    margin-bottom: 12px;
+    height: 16px;
+  }
+
+  /* Gauge Needle */
+  .gauge-container {
+    width: 100%;
+    height: 20px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.3; /* Dimmed when inactive */
+    transition: opacity 0.3s;
+  }
+  .gauge-container.active {
+    opacity: 1;
+  }
+  
+  .gauge-track {
+    width: 80%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--system-red) 0%, var(--system-green) 50%, var(--system-red) 100%);
+    position: relative;
+    border-radius: 1px;
+  }
+  
+  .gauge-center-mark {
+    position: absolute;
+    left: 50%;
+    top: -6px;
+    width: 2px;
+    height: 14px;
+    background: var(--text-primary);
+    transform: translateX(-50%);
+  }
+  
+  .gauge-needle {
+    position: absolute;
+    top: -8px;
+    left: 50%; /* Center is 50% */
+    width: 4px;
+    height: 18px;
+    background: #fff;
+    border-radius: 2px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 8px rgba(255,255,255,0.8);
+    transition: left 0.1s linear; /* Smooth visual updates */
+  }
+
+  /* --- Pitch Selection & Controls --- */
+  .controls-panel {
+    background: var(--fill-tertiary);
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  /* Target Pitch Header */
+  .control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .target-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  /* Play SVG Button */
+  .play-pitch-btn {
+    background: rgba(255, 159, 10, 0.15);
+    border: none;
+    color: var(--accent);
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .play-pitch-btn:active { background: rgba(255, 159, 10, 0.3); }
+  .play-pitch-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+  /* iOS Style Range Slider */
+  .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .range-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    width: 24px;
+  }
+  
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+  }
+  input[type=range]:focus { outline: none; }
+  input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    height: 24px;
+    width: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -9px;
+  }
+
+  /* Timer & Action Button */
+  .bottom-row {
+    display: flex;
+    gap: 12px;
+  }
+  .timer-display {
+    background: var(--fill-tertiary);
+    border-radius: 16px;
+    padding: 18px;
+    font-variant-numeric: tabular-nums;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+  }
+  .action-btn {
+    flex-grow: 1;
+    padding: 18px;
+    border-radius: 16px;
+    font-size: 17px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-start { background-color: var(--accent); color: #000; }
+  .btn-stop { background-color: var(--system-red); color: #fff; }
+  .action-btn:active { transform: scale(0.97); }
+
+</style>
 </head>
 <body>
-    <div class="phone-frame">
-        <div class="status-bar">
-            <span>10:02</span>
-            <span>🔋 🏠</span>
-        </div>
-        
-        <div class="nav-bar">
-            <button class="nav-btn">‹ Back</button>
-            <span class="nav-title">Interval Jumps</span>
-            <button class="nav-btn">Done</button>
-        </div>
-        
-        <div class="content">
-            <div class="header-tags">
-                <span class="tag tag-pitch">Pitch</span>
-                <span class="tag tag-difficulty">Intermediate</span>
-                <span class="tag tag-duration">10 min</span>
-            </div>
-            
-            <h1 class="exercise-title">Interval Jumps<br>(3rds/5ths)</h1>
-            <p class="exercise-subtitle">Interval recognition and pitch memory</p>
-            
-            <div class="section-header">About</div>
-            <div class="card">
-                <p class="card-text">Practice jumping between musical intervals to build pitch memory.</p>
-            </div>
-            
-            <div class="section-header">How to Do It</div>
-            <div class="card">
-                <p class="card-text">Starting on any note, jump up a third, then a fifth, landing accurately each time. Sing on 'la' or 'na'. Use a piano or app for reference.</p>
-            </div>
-            
-            <div class="section-header">Tips</div>
-            <div class="card">
-                <div class="tip-item">
-                    <span class="tip-icon">✓</span>
-                    <span class="card-text">Hear the interval in your head before you sing it</span>
-                </div>
-                <div class="tip-item">
-                    <span class="tip-icon">✓</span>
-                    <span class="card-text">Record yourself and compare to the piano</span>
-                </div>
-                <div class="tip-item">
-                    <span class="tip-icon">✓</span>
-                    <span class="card-text">Start with thirds before moving to fifths</span>
-                </div>
-            </div>
-            
-            <div class="section-header">Demo</div>
-            <div class="video-thumbnail">
-                <div style="background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-                    <div class="play-btn"></div>
-                </div>
-                <span class="video-label">Brett Manning's Top 10</span>
-            </div>
-        </div>
-        
-        <!-- Bottom Tools Panel -->
-        <div class="tools-panel">
-            <div class="tools-panel-header">
-                <span class="tools-panel-title">Practice Tools</span>
-                <span class="tools-panel-subtitle">Active tools</span>
-            </div>
-            
-            <div class="tools-list">
-                <!-- Timer Row -->
-                <div class="tool-row active">
-                    <div class="tool-row-inner">
-                        <div class="tool-icon-wrapper">⏱️</div>
-                        <div class="tool-row-header">
-                            <span class="tool-name">Timer</span>
-                        </div>
-                        <div class="tool-value">03:45</div>
-                        <div class="tool-action">
-                            <button class="action-btn btn-danger">Stop</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Pitch Reference Row (expandable) -->
-                <div class="tool-row expanded">
-                    <div class="tool-row-inner">
-                        <div class="tool-icon-wrapper">🎵</div>
-                        <div class="tool-row-header">
-                            <span class="tool-name">Pitch Reference</span>
-                        </div>
-                        <div class="tool-value">A4</div>
-                        <div class="tool-action">
-                            <button class="action-btn btn-primary">Play</button>
-                        </div>
-                    </div>
-                    <div class="tool-expanded">
-                        <div class="pitch-slider-wrapper">
-                            <div class="pitch-slider-labels">
-                                <span class="pitch-note-label">A4 (440 Hz)</span>
-                                <span class="pitch-range-label">C4 → C5</span>
-                            </div>
-                            <input type="range" class="pitch-slider" min="0" max="24" value="9" orient="horizontal">
-                            <div class="pitch-freq">440.0 Hz</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Pitch Detector Row -->
-                <div class="tool-row">
-                    <div class="tool-row-inner">
-                        <div class="tool-icon-wrapper">🎤</div>
-                        <div class="tool-row-header">
-                            <span class="tool-name">Pitch Detector</span>
-                        </div>
-                        <div class="tool-action">
-                            <button class="action-btn btn-secondary">Start</button>
-                        </div>
-                    </div>
-                    <div class="tool-expanded">
-                        <div class="pitch-detector-row">
-                            <div class="detector-note">A4</div>
-                            <div class="detector-cents">+12 cents</div>
-                            <div class="detector-indicator">
-                                <div class="detector-indicator-center"></div>
-                                <div class="detector-indicator-fill" style="left: 58%;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+
+<div class="device-frame">
+  <div class="lesson-content">
+    <h1>Interval Jumps</h1>
+    <p class="subtitle">3rds & 5ths</p>
+    <div style="margin-top: 30px;">
+      <div class="skeleton-text"></div>
+      <div class="skeleton-text"></div>
+      <div class="skeleton-text short"></div>
     </div>
+  </div>
+
+  <div class="practice-sheet">
+    <div class="grabber"></div>
+
+    <div class="tuner-display">
+      <div class="pitch-readout">
+        <span class="current-note" id="liveNote">--</span>
+      </div>
+      <div class="cents-display" id="centsDisplay">Waiting...</div>
+      
+      <div class="gauge-container" id="gaugeContainer">
+        <div class="gauge-track">
+          <div class="gauge-center-mark"></div>
+          <div class="gauge-needle" id="gaugeNeedle"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-panel">
+      <div class="control-header">
+        <span class="target-label">Target: <span id="targetNoteLabel" style="color:#fff; font-size:16px;">C4</span></span>
+        <button class="play-pitch-btn" id="playPitchBtn" title="Hear Pitch">
+          <svg viewBox="0 0 24 24">
+            <path d="M13.5 4.06c0-1.33-1.16-2.03-2.16-1.37l-4.7 3.14H3.5C2.67 5.83 2 6.5 2 7.33v9.34c0 .83.67 1.5 1.5 1.5h3.14l4.7 3.14c1 .66 2.16-.04 2.16-1.37V4.06z M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z M16.5 3.32v2.16c2.88.86 5 3.54 5 6.52s-2.12 5.66-5 6.52v2.16c4.05-.91 7-4.59 7-8.68s-2.95-7.77-7-8.68z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="slider-container">
+        <span class="range-label">C2</span>
+        <input type="range" id="pitchSlider" min="0" max="36" value="24">
+        <span class="range-label">C5</span>
+      </div>
+    </div>
+
+    <div class="bottom-row">
+      <div class="timer-display" id="timer">00:00</div>
+      <button class="action-btn btn-start" id="mainActionBtn">Start Practice</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // --- Pitch Math & Generation ---
+  const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const allNotes = []; // Will hold C2 to C5
+  
+  // Build array of notes (A4 = 440Hz)
+  for(let octave = 2; octave <= 5; octave++) {
+    for(let i = 0; i < 12; i++) {
+      if (octave === 5 && i > 0) break; // Stop at C5
+      
+      // Calculate frequency relative to A4 (which is note 69 in MIDI, C2 is 36)
+      const midiNumber = (octave + 1) * 12 + i; 
+      const freq = 440 * Math.pow(2, (midiNumber - 69) / 12);
+      
+      allNotes.push({
+        name: noteNames[i] + octave,
+        freq: freq
+      });
+    }
+  }
+
+  // --- UI Elements ---
+  const slider = document.getElementById('pitchSlider');
+  const targetLabel = document.getElementById('targetNoteLabel');
+  const playBtn = document.getElementById('playPitchBtn');
+  
+  const mainBtn = document.getElementById('mainActionBtn');
+  const timerDisplay = document.getElementById('timer');
+  const liveNote = document.getElementById('liveNote');
+  const centsDisplay = document.getElementById('centsDisplay');
+  const gaugeContainer = document.getElementById('gaugeContainer');
+  const gaugeNeedle = document.getElementById('gaugeNeedle');
+
+  let currentTargetIndex = parseInt(slider.value); // Defaults to C4 (index 24)
+  let isPracticing = false;
+  let timerInterval = null;
+  let seconds = 0;
+  let simFrameId;
+
+  // --- Slider Event ---
+  slider.addEventListener('input', (e) => {
+    currentTargetIndex = parseInt(e.target.value);
+    targetLabel.innerText = allNotes[currentTargetIndex].name;
+    
+    // If practicing, instantly snap the simulation target
+    if(isPracticing) {
+       liveNote.innerText = allNotes[currentTargetIndex].name;
+    }
+  });
+
+  // --- Audio Player ---
+  let audioCtx;
+  playBtn.addEventListener('click', () => {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.value = allNotes[currentTargetIndex].freq;
+    
+    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.0);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 1.0);
+  });
+
+  // --- Pitch Simulation Engine ---
+  // Simulates a singer hunting for the pitch, wavering slightly.
+  let simulatedPhase = 0;
+  
+  function updateSimulation() {
+    if (!isPracticing) return;
+
+    // Create a smooth, wavering offset (-50 to +50 cents)
+    // Combining a couple of sine waves makes it look organic, not purely random.
+    simulatedPhase += 0.05;
+    let waver = (Math.sin(simulatedPhase) * 15) + (Math.sin(simulatedPhase * 2.3) * 10) + (Math.random() * 4 - 2);
+    
+    // Periodically "drift" off pitch severely, then correct back
+    if (Math.random() < 0.01) simulatedPhase += 5; 
+
+    // Cap at +/- 50 cents
+    let centsOffset = Math.max(-50, Math.min(50, waver));
+    
+    // Map cents to UI (-50 cents = 0% left, 0 cents = 50% left, +50 cents = 100% left)
+    const uiPosition = 50 + centsOffset;
+    gaugeNeedle.style.left = `${uiPosition}%`;
+
+    // Color logic
+    if (Math.abs(centsOffset) <= 10) {
+      liveNote.style.color = 'var(--system-green)';
+      centsDisplay.innerText = "In Tune";
+    } else {
+      liveNote.style.color = 'var(--text-primary)';
+      const sign = centsOffset > 0 ? "+" : "";
+      centsDisplay.innerText = `${sign}${Math.round(centsOffset)} cents`;
+    }
+
+    simFrameId = requestAnimationFrame(updateSimulation);
+  }
+
+  // --- Main Action ---
+  mainBtn.addEventListener('click', () => {
+    isPracticing = !isPracticing;
+    
+    if (isPracticing) {
+      mainBtn.innerText = 'Stop';
+      mainBtn.className = 'action-btn btn-stop';
+      gaugeContainer.classList.add('active');
+      liveNote.innerText = allNotes[currentTargetIndex].name;
+      
+      // Start Simulation
+      updateSimulation();
+
+      // Start Timer
+      timerInterval = setInterval(() => {
+        seconds++;
+        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const secs = String(seconds % 60).padStart(2, '0');
+        timerDisplay.innerText = `${mins}:${secs}`;
+      }, 1000);
+
+    } else {
+      mainBtn.innerText = 'Start Practice';
+      mainBtn.className = 'action-btn btn-start';
+      gaugeContainer.classList.remove('active');
+      
+      liveNote.innerText = '--';
+      liveNote.style.color = 'var(--text-primary)';
+      centsDisplay.innerText = 'Waiting...';
+      gaugeNeedle.style.left = '50%';
+      
+      cancelAnimationFrame(simFrameId);
+      clearInterval(timerInterval);
+      seconds = 0;
+      timerDisplay.innerText = '00:00';
+    }
+  });
+</script>
+
 </body>
 </html>

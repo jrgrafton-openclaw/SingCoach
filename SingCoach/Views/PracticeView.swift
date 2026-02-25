@@ -277,7 +277,9 @@ struct SwipeToDeleteRow<Content: View>: View {
                         }
                 )
         }
-        .clipped()
+        // Use RoundedRectangle clip so the row keeps its rounded corners during swipe
+        // (plain .clipped() uses a rectangle and overrides the surface card's cornerRadius)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         // Tap anywhere on the ZStack to close if open
         .onTapGesture {
             if isOpen { snap(to: 0) }
@@ -316,10 +318,10 @@ struct PracticeHistoryEntryRow: View {
                 .font(.system(size: 11))
                 .foregroundColor(SingCoachTheme.textSecondary)
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
         .background(SingCoachTheme.surface)
-        .cornerRadius(10)
+        // cornerRadius intentionally omitted — SwipeToDeleteRow clips to RoundedRectangle
     }
 }
 
