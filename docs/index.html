@@ -391,6 +391,7 @@
   // --- Pitch Simulation Engine ---
   // Simulates a singer hunting for the pitch, wavering slightly.
   let simulatedPhase = 0;
+  let simulatedBaseNoteIndex = 24; // Default C4, will be randomized on start
   
   function updateSimulation() {
     if (!isPracticing) return;
@@ -409,6 +410,15 @@
     // Map cents to UI (-50 cents = 0% left, 0 cents = 50% left, +50 cents = 100% left)
     const uiPosition = 50 + centsOffset;
     gaugeNeedle.style.left = `${uiPosition}%`;
+
+    // Calculate the "heard" note based on cents offset
+    // When centsOffset is positive, we're sharp of the base note; negative = flat
+    const totalCents = (simulatedBaseNoteIndex * 100) + centsOffset;
+    const heardNoteIndex = Math.round(totalCents / 100);
+    const noteIndex = Math.max(0, Math.min(allNotes.length - 1, heardNoteIndex));
+    
+    // Update the displayed note
+    liveNote.innerText = allNotes[noteIndex].name;
 
     // Color logic
     if (Math.abs(centsOffset) <= 10) {
@@ -431,7 +441,11 @@
       mainBtn.innerText = 'Stop';
       mainBtn.className = 'action-btn btn-stop';
       gaugeContainer.classList.add('active');
-      // Note: liveNote shows "--" initially, then updates via voice detection simulation
+      
+      // Pick a random base note in a reasonable singing range (C3 to G4)
+      // C3 is index 12, G4 is around index 34
+      simulatedBaseNoteIndex = 12 + Math.floor(Math.random() * 23);
+      simulatedPhase = 0; // Reset phase for fresh wavering pattern
       
       // Start Simulation (will show detected pitch, not target)
       updateSimulation();
