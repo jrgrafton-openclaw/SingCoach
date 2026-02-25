@@ -362,14 +362,11 @@
   let simFrameId;
 
   // --- Slider Event ---
+  // Slider changes target for reference playback only - NOT the live pitch display
   slider.addEventListener('input', (e) => {
     currentTargetIndex = parseInt(e.target.value);
     targetLabel.innerText = allNotes[currentTargetIndex].name;
-    
-    // If practicing, instantly snap the simulation target
-    if(isPracticing) {
-       liveNote.innerText = allNotes[currentTargetIndex].name;
-    }
+    // Note: liveNote display only changes via voice detection (updateSimulation), not slider
   });
 
   // --- Audio Player ---
@@ -434,9 +431,9 @@
       mainBtn.innerText = 'Stop';
       mainBtn.className = 'action-btn btn-stop';
       gaugeContainer.classList.add('active');
-      liveNote.innerText = allNotes[currentTargetIndex].name;
+      // Note: liveNote shows "--" initially, then updates via voice detection simulation
       
-      // Start Simulation
+      // Start Simulation (will show detected pitch, not target)
       updateSimulation();
 
       // Start Timer
