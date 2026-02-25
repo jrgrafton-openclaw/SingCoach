@@ -115,6 +115,8 @@ struct ExerciseDetailSheet: View {
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showPracticeTools) {
             PracticeToolsView(exercise: exercise)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
     }
 }
