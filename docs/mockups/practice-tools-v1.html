@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SingCoach - Practice Tools Mockup</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
+            background: #1a1625;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .phone-frame {
+            max-width: 390px;
+            margin: 0 auto;
+            background: linear-gradient(180deg, #2d2342 0%, #1a1625 100%);
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 14px 24px 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 20px 16px;
+        }
+        
+        .nav-title {
+            color: white;
+            font-size: 17px;
+            font-weight: 600;
+            text-align: center;
+            flex: 1;
+        }
+        
+        .nav-btn {
+            color: #f59e0b;
+            font-size: 17px;
+            font-weight: 600;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .content {
+            padding: 0 20px 120px;
+            overflow-y: auto;
+        }
+        
+        .header-tags {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .tag {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .tag-pitch {
+            background: transparent;
+            border: 1px solid #a78bfa;
+            color: #a78bfa;
+        }
+        
+        .tag-difficulty {
+            background: #7c3aed;
+            color: white;
+        }
+        
+        .tag-duration {
+            color: #9ca3af;
+            font-size: 13px;
+        }
+        
+        .exercise-title {
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+        
+        .exercise-subtitle {
+            color: #a78bfa;
+            font-size: 15px;
+            margin-bottom: 24px;
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .card-title {
+            color: #9ca3af;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .card-text {
+            color: white;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        
+        .tip-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .tip-icon {
+            color: #f59e0b;
+            font-size: 14px;
+            margin-top: 2px;
+        }
+        
+        .video-thumbnail {
+            position: relative;
+            background: #0f0f0f;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+        }
+        
+        .video-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .play-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(255,0,0,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .play-btn::after {
+            content: '';
+            border-left: 20px solid white;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            margin-left: 4px;
+        }
+        
+        .video-label {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        
+        /* Bottom Tools Panel */
+        .tools-panel {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 390px;
+            background: #1e1a2e;
+            border-radius: 24px 24px 0 0;
+            padding: 20px 20px 36px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.4);
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .tools-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .tools-panel-title {
+            color: white;
+            font-size: 17px;
+            font-weight: 600;
+        }
+        
+        .tools-panel-subtitle {
+            color: #9ca3af;
+            font-size: 13px;
+        }
+        
+        .tools-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .tool-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: all 0.2s;
+        }
+        
+        .tool-card.active {
+            background: rgba(245, 158, 11, 0.15);
+            border-color: #f59e0b;
+        }
+        
+        .tool-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .tool-name {
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .tool-value {
+            color: #f59e0b;
+            font-size: 20px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .tool-value.inactive {
+            color: #6b7280;
+        }
+        
+        .tool-btn {
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-start {
+            background: #f59e0b;
+            color: #1a1625;
+        }
+        
+        .btn-stop {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        .btn-reset {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        /* Pitch Reference Slider */
+        .pitch-slider-container {
+            margin-top: 12px;
+        }
+        
+        .pitch-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.1);
+            outline: none;
+        }
+        
+        .pitch-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f59e0b;
+            cursor: pointer;
+        }
+        
+        .pitch-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            color: #6b7280;
+            font-size: 11px;
+        }
+        
+        /* Pitch Detector */
+        .pitch-detector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+        }
+        
+        .pitch-note {
+            font-size: 36px;
+            font-weight: 700;
+            color: #10b981;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .pitch-cents {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        
+        .pitch-indicator {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin-top: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pitch-indicator-fill {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 4px;
+            height: 100%;
+            background: #10b981;
+            border-radius: 2px;
+            transform: translateX(-50%);
+            transition: left 0.1s;
+        }
+        
+        .pitch-indicator-center {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 100%;
+            background: rgba(255,255,255,0.3);
+            transform: translateX(-50%);
+        }
+
+        /* Tooltip for expand */
+        .expand-hint {
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="status-bar">
+            <span>10:02</span>
+            <span>📍 🔋 🏠</span>
+        </div>
+        
+        <div class="nav-bar">
+            <button class="nav-btn">‹ Back</button>
+            <span class="nav-title">Interval Jumps</span>
+            <button class="nav-btn">Done</button>
+        </div>
+        
+        <div class="content">
+            <div class="header-tags">
+                <span class="tag tag-pitch">Pitch</span>
+                <span class="tag tag-difficulty">Intermediate</span>
+                <span class="tag tag-duration">10 min</span>
+            </div>
+            
+            <h1 class="exercise-title">Interval Jumps<br>(3rds/5ths)</h1>
+            <p class="exercise-subtitle">Interval recognition and pitch memory</p>
+            
+            <div class="card">
+                <div class="card-title">About</div>
+                <p class="card-text">Practice jumping between musical intervals to build pitch memory.</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">How to Do It</div>
+                <p class="card-text">Starting on any note, jump up a third, then a fifth, landing accurately each time. Sing on 'la' or 'na'. Use a piano or app for reference.</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Tips</div>
+                <div class="tip-item">
+                    <span class="tip-icon">✓</span>
+                    <span class="card-text">Hear the interval in your head before you sing it</span>
+                </div>
+                <div class="tip-item">
+                    <span class="tip-icon">✓</span>
+                    <span class="card-text">Record yourself and compare to the piano</span>
+                </div>
+                <div class="tip-item">
+                    <span class="tip-icon">✓</span>
+                    <span class="card-text">Start with thirds before moving to fifths</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Watch a Demo</div>
+                <div class="video-thumbnail">
+                    <div style="background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                        <div class="play-btn"></div>
+                    </div>
+                    <span class="video-label">Brett Manning's Top 10</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Tools Panel -->
+        <div class="tools-panel">
+            <div class="tools-panel-header">
+                <div>
+                    <div class="tools-panel-title">Practice Tools</div>
+                    <div class="tools-panel-subtitle">Tap a tool to activate</div>
+                </div>
+            </div>
+            
+            <div class="tools-grid">
+                <!-- Timer Tool -->
+                <div class="tool-card active">
+                    <div class="tool-icon">⏱️</div>
+                    <div class="tool-name">Timer</div>
+                    <div class="tool-value">03:45</div>
+                    <button class="tool-btn btn-stop">Stop</button>
+                </div>
+                
+                <!-- Pitch Reference Tool -->
+                <div class="tool-card">
+                    <div class="tool-icon">🎵</div>
+                    <div class="tool-name">Pitch Ref</div>
+                    <div class="tool-value inactive">A4</div>
+                    <div class="pitch-slider-container">
+                        <input type="range" class="pitch-slider" min="0" max="24" value="9">
+                        <div class="pitch-labels">
+                            <span>C4</span>
+                            <span>C5</span>
+                        </div>
+                    </div>
+                    <button class="tool-btn btn-start">Play</button>
+                </div>
+                
+                <!-- Pitch Detector Tool -->
+                <div class="tool-card">
+                    <div class="tool-icon">🎤</div>
+                    <div class="tool-name">Listen</div>
+                    <div class="pitch-detector">
+                        <div class="pitch-note">A4</div>
+                        <div class="pitch-cents">+12 cents</div>
+                        <div class="pitch-indicator">
+                            <div class="pitch-indicator-center"></div>
+                            <div class="pitch-indicator-fill" style="left: 58%;"></div>
+                        </div>
+                    </div>
+                    <button class="tool-btn btn-start">Start</button>
+                </div>
+            </div>
+            
+            <div class="expand-hint">Swipe up for more tools →</div>
+        </div>
+    </div>
+</body>
+</html>
