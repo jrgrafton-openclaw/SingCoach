@@ -6,6 +6,7 @@ struct ExerciseDetailSheet: View {
     let exercise: Exercise
     let onMarkPracticed: () -> Void
     @State private var practiced = false
+    @State private var showPracticeTools = false
 
     var body: some View {
         NavigationStack {
@@ -81,21 +82,19 @@ struct ExerciseDetailSheet: View {
                             }
                         }
 
-                        // Mark as practiced
+                        // Practice button
                         Button {
-                            practiced = true
-                            onMarkPracticed()
-                            dismiss()
+                            showPracticeTools = true
                         } label: {
                             HStack {
-                                Image(systemName: practiced ? "checkmark.circle.fill" : "flame.fill")
-                                Text(practiced ? "Practised!" : "Mark as Practised Today")
+                                Image(systemName: "play.fill")
+                                Text("Practice")
                                     .font(.system(size: 16, weight: .semibold))
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: 52)
-                            .background(practiced ? Color.green : SingCoachTheme.accent)
-                            .foregroundColor(practiced ? .white : .black)
+                            .background(SingCoachTheme.accent)
+                            .foregroundColor(.black)
                             .cornerRadius(14)
                         }
                         .padding(.top, 8)
@@ -114,6 +113,9 @@ struct ExerciseDetailSheet: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showPracticeTools) {
+            PracticeToolsView(exercise: exercise)
+        }
     }
 }
 
