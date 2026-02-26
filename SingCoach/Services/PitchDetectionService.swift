@@ -41,26 +41,49 @@ final class PitchDetectionService: ObservableObject {
         }
         
         do {
-            // Configure audio session first
+            // Use playAndRecord so tone generator and pitch detector coexist.
+            // Use .default mode (not .measurement) — .measurement disables audio processing
+            // but can cause conflicts on some devices when another engine is active.
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .mixWithOthers, .allowBluetoothHFP])
             try session.setActive(true)
         } catch {
             print("[PitchDetection] Failed to configure audio session: \(error.localizedDescription)")
             return
         }
         
-        audioEngine = AVAudioEngine()
-        guard let engine = audioEngine else { return }
+        let engine = AVAudioEngine()
+        audioEngine = engine
         
-        inputNode = engine.inputNode
-        guard let input = inputNode else { return }
+        let input = engine.inputNode
+        inputNode = input
         
         let format = input.outputFormat(forBus: 0)
         
-        // Install tap on input node
+        guard format.sampleRate > 0 && format.channelCount > 0 else {
+            print("[PitchDetection] Invalid input format — mic may not be available in simulator")
+            audioEngine = nil
+            inputNode = nil
+            return
+        }
+        
+        // Install tap — the callback fires on an AVAudio internal thread.
+        // We copy the data immediately then hop to the main queue.
+        // IMPORTANT: Do NOT use `Task { @MainActor }` here — creating a Task from an AVAudio
+        // callback thread causes Swift Concurrency to assert actor isolation via
+        // _swift_task_checkIsolatedSwift → dispatch_assert_queue_fail → EXC_BREAKPOINT crash.
+        // DispatchQueue.main.async is safe from any thread.
         input.installTap(onBus: 0, bufferSize: bufferSize, format: format) { [weak self] buffer, _ in
-            self?.processAudioBuffer(buffer)
+            // Copy samples out of the buffer immediately (buffer may be reused)
+            guard let channelData = buffer.floatChannelData?[0] else { return }
+            let frameCount = Int(buffer.frameLength)
+            guard frameCount > 0 else { return }
+            let samples = Array(UnsafeBufferPointer(start: channelData, count: frameCount))
+            let sampleRate = format.sampleRate
+            
+            DispatchQueue.main.async { [weak self] in
+                self?.handleSamples(samples, sampleRate: sampleRate)
+            }
         }
         
         do {
@@ -68,10 +91,7 @@ final class PitchDetectionService: ObservableObject {
             isDetecting = true
         } catch {
             print("[PitchDetection] Failed to start engine: \(error.localizedDescription)")
-            // Clean up on failure
-            if let input = inputNode {
-                input.removeTap(onBus: 0)
-            }
+            input.removeTap(onBus: 0)
             audioEngine = nil
             inputNode = nil
         }
@@ -80,9 +100,7 @@ final class PitchDetectionService: ObservableObject {
     func stop() {
         guard isDetecting else { return }
         
-        if let input = inputNode {
-            input.removeTap(onBus: 0)
-        }
+        inputNode?.removeTap(onBus: 0)
         audioEngine?.stop()
         audioEngine = nil
         inputNode = nil
@@ -90,70 +108,86 @@ final class PitchDetectionService: ObservableObject {
         currentPitch = nil
     }
     
-    private func requestMicrophonePermission() async -> Bool {
-        await withCheckedContinuation { continuation in
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                continuation.resume(returning: granted)
-            }
-        }
+    // MARK: - Test seam
+
+    /// Injects raw samples directly into the pitch-detection pipeline.
+    /// For unit tests only — allows testing the main-queue dispatch path without a real microphone.
+    func injectSamplesForTesting(_ samples: [Float], sampleRate: Double) {
+        handleSamples(samples, sampleRate: sampleRate)
+    }
+
+    // MARK: - Private helpers (all called on @MainActor)
+    
+    private func handleSamples(_ samples: [Float], sampleRate: Double) {
+        guard let frequency = detectPitch(samples: samples, sampleRate: sampleRate),
+              frequency >= minFrequency && frequency <= maxFrequency else { return }
+        
+        let midiNote = Int(round(69 + 12 * log2(frequency / 440.0)))
+        let noteName = noteName(for: midiNote)
+        let perfectFreq = Self.frequency(for: midiNote)
+        let cents = 1200 * log2(frequency / perfectFreq)
+        
+        currentPitch = PitchResult(
+            frequency: frequency,
+            noteName: noteName,
+            cents: cents,
+            midiNote: midiNote
+        )
     }
     
-    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
-        guard let channelData = buffer.floatChannelData?[0] else { return }
-        let frameCount = Int(buffer.frameLength)
-        
-        // Run pitch detection on background thread
-        let samples = Array(UnsafeBufferPointer(start: channelData, count: frameCount))
-        
-        if let frequency = detectPitch(samples: samples), 
-           frequency >= minFrequency && frequency <= maxFrequency {
-            
-            let midiNote = Int(round(69 + 12 * log2(frequency / 440.0)))
-            let noteName = noteName(for: midiNote)
-            let perfectFreq = Self.frequency(for: midiNote)
-            let cents = 1200 * log2(frequency / perfectFreq)
-            
-            let result = PitchResult(
-                frequency: frequency,
-                noteName: noteName,
-                cents: cents,
-                midiNote: midiNote
-            )
-            
-            Task { @MainActor [weak self] in
-                self?.currentPitch = result
+    private func requestMicrophonePermission() async -> Bool {
+        // Use withTaskGroup to add a timeout — on simulator the callback may never fire
+        // if there is no mic hardware, which would cause start() to hang indefinitely.
+        return await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                await withCheckedContinuation { continuation in
+                    AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                        continuation.resume(returning: granted)
+                    }
+                }
             }
+            group.addTask {
+                // 3-second timeout fallback: treat as denied
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                return false
+            }
+            let result = await group.next() ?? false
+            group.cancelAll()
+            return result
         }
     }
     
     /// Autocorrelation-based pitch detection
-    private func detectPitch(samples: [Float]) -> Double? {
+    private func detectPitch(samples: [Float], sampleRate: Double) -> Double? {
         let n = samples.count
         guard n > 0 else { return nil }
         
-        let sampleRate = 44100.0
-        
         // Calculate autocorrelation
-        var correlations: [Float] = []
         let minLag = Int(sampleRate / maxFrequency) // ~44 samples for 1000Hz
         let maxLag = Int(sampleRate / minFrequency) // ~551 samples for 80Hz
         
-        for lag in minLag..<min(maxLag, n / 2) {
+        guard minLag < maxLag, maxLag < n / 2 else { return nil }
+        
+        var correlations: [Float] = []
+        correlations.reserveCapacity(maxLag - minLag)
+        
+        for lag in minLag..<maxLag {
             var sum: Float = 0
-            for i in 0..<(n - lag) {
+            let limit = n - lag
+            for i in 0..<limit {
                 sum += samples[i] * samples[i + lag]
             }
             correlations.append(sum)
         }
         
-        // Find the first peak (fundamental frequency)
         guard !correlations.isEmpty else { return nil }
         
+        // Find the first peak (fundamental frequency)
         var maxCorrelation: Float = 0
         var bestLag = minLag
         
         for i in 1..<(correlations.count - 1) {
-            if correlations[i] > correlations[i - 1] && 
+            if correlations[i] > correlations[i - 1] &&
                correlations[i] > correlations[i + 1] &&
                correlations[i] > maxCorrelation {
                 maxCorrelation = correlations[i]
@@ -170,11 +204,14 @@ final class PitchDetectionService: ObservableObject {
             return sampleRate / Double(bestLag)
         }
         
-        let y0 = correlations[index - 1]
-        let y1 = correlations[index]
-        let y2 = correlations[index + 1]
+        let y0 = Double(correlations[index - 1])
+        let y1 = Double(correlations[index])
+        let y2 = Double(correlations[index + 1])
         
-        let refinedLag = Double(bestLag) + Double(y0 - y2) / (2 * Double(y0 - 2 * y1 + y2))
+        let denom = 2.0 * (y0 - 2.0 * y1 + y2)
+        guard denom != 0 else { return sampleRate / Double(bestLag) }
+        
+        let refinedLag = Double(bestLag) + (y0 - y2) / denom
         
         return sampleRate / refinedLag
     }

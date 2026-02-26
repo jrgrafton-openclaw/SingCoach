@@ -202,7 +202,11 @@ struct RecordFAB: View {
                     }
                 }
                 .contentShape(Circle())
-                .gesture(
+                // Use simultaneousGesture (not .gesture) so the gesture coordinator doesn't
+                // exclusively own/reset the gesture node when view state changes mid-press.
+                // Exclusive .gesture() causes GestureNodeShim to reset its RingBuffer while a
+                // phase is being queued → RingBuffer.last crash (EXC_BREAKPOINT/SIGTRAP).
+                .simultaneousGesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { _ in
                             if !isRecording && !isLongPressing {
@@ -287,7 +291,10 @@ struct RecordFAB: View {
         longPressProgress = 0
         let step: CGFloat = 0.02 / longPressThreshold
         longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [self] _ in
-            Task { @MainActor [self] in
+            // Use DispatchQueue.main.async — NOT Task { @MainActor } — because Timer callbacks
+            // are not isolated to any actor, and creating a Task there triggers
+            // _swift_task_checkIsolatedSwift → dispatch_assert_queue_fail → EXC_BREAKPOINT crash.
+            DispatchQueue.main.async { [self] in
                 longPressProgress += step
                 if longPressProgress >= 1.0 {
                     longPressTimer?.invalidate()
@@ -419,7 +426,8 @@ struct HeaderRecordButton: View {
                 .shadow(color: isRecording ? activeColor.opacity(0.4) : .clear, radius: 8, y: 3)
             }
             .contentShape(Rectangle())
-            .gesture(
+            // Use simultaneousGesture (not .gesture) — see RecordFAB comment above.
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in
                         if !isRecording && !isLongPressing { beginLongPress() }
@@ -476,7 +484,10 @@ struct HeaderRecordButton: View {
         longPressProgress = 0
         let step: CGFloat = 0.02 / longPressThreshold
         longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [self] _ in
-            Task { @MainActor [self] in
+            // Use DispatchQueue.main.async — NOT Task { @MainActor } — because Timer callbacks
+            // are not isolated to any actor, and creating a Task there triggers
+            // _swift_task_checkIsolatedSwift → dispatch_assert_queue_fail → EXC_BREAKPOINT crash.
+            DispatchQueue.main.async { [self] in
                 longPressProgress += step
                 if longPressProgress >= 1.0 {
                     longPressTimer?.invalidate(); longPressTimer = nil

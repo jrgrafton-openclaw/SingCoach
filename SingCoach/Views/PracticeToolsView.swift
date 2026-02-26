@@ -128,16 +128,24 @@ struct PracticeToolsView: View {
     
     private var pitchReferenceSection: some View {
         VStack(spacing: 12) {
-            // Row: TARGET label | [spacer] | play button
-            // Note name sits in its own centred row below
-            HStack {
+            // One row: TARGET (left) | F3 centred | speaker (right)
+            // Use a 3-column layout — left and right columns are equal width so the
+            // centre column is truly centred across the full container.
+            HStack(spacing: 0) {
+                // Left: TARGET label, left-aligned
                 Text("Target")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(SingCoachTheme.textSecondary)
                     .textCase(.uppercase)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 
-                Spacer()
+                // Centre: note name, always centred
+                Text(ToneGeneratorService.noteName(for: selectedMidiNote))
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundColor(SingCoachTheme.accent)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 
+                // Right: speaker button, right-aligned
                 Button {
                     toneGenerator.play(midiNote: selectedMidiNote)
                 } label: {
@@ -149,13 +157,8 @@ struct PracticeToolsView: View {
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            
-            // Note name centred on its own line
-            Text(ToneGeneratorService.noteName(for: selectedMidiNote))
-                .font(.system(size: 32, weight: .bold, design: .rounded))
-                .foregroundColor(SingCoachTheme.accent)
-                .frame(maxWidth: .infinity, alignment: .center)
             
             // Slider row
             HStack(spacing: 12) {
