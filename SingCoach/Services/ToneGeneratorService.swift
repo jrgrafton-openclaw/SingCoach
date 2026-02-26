@@ -8,10 +8,8 @@ final class ToneGeneratorService: ObservableObject {
     @Published var isPlaying = false
     
     private var audioEngine: AVAudioEngine?
-    private var oscillator: AVAudioSourceNode?
-    private var phase: Double = 0
     private var frequency: Double = 440
-    private let sampleRate: Double = 44100
+    private var autoStopTask: Task<Void, Never>?
     
     // Note names for display
     static let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -47,26 +45,47 @@ final class ToneGeneratorService: ObservableObject {
     }
     
     func play(frequency: Double) {
-        stop() // Stop any existing tone
+        // Cancel any existing auto-stop task
+        autoStopTask?.cancel()
+        autoStopTask = nil
+        
+        // Stop any existing tone first
+        stop()
         
         self.frequency = frequency
         
-        audioEngine = AVAudioEngine()
-        guard let engine = audioEngine else { return }
+        // Configure audio session first - do this on main thread
+        let session = AVAudioSession.sharedInstance()
+        do {
+            // Use playAndRecord so it coexists with pitch detection mic input
+            try session.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+        } catch {
+            print("[ToneGenerator] Audio session error: \(error.localizedDescription)")
+            // Continue anyway - the engine might still work
+        }
         
-        let mainMixer = engine.mainMixerNode
-        let outputFormat = engine.outputNode.inputFormat(forBus: 0)
+        // Create new engine
+        let newEngine = AVAudioEngine()
+        
+        let mainMixer = newEngine.mainMixerNode
+        let outputFormat = newEngine.outputNode.inputFormat(forBus: 0)
+        
+        guard outputFormat.sampleRate > 0 else {
+            print("[ToneGenerator] Invalid sample rate")
+            return
+        }
+        
         let sampleRate = outputFormat.sampleRate
         
-        // Create source node for sine wave
-        var phase = 0.0
-        let phaseIncrement = 2.0 * Double.pi * frequency / sampleRate
+        // Create source node for sine wave - capture frequency safely
+        let freq = self.frequency
         
-        let sourceNode = AVAudioSourceNode { [weak self] _, _, frameCount, audioBufferList -> OSStatus in
-            guard let self = self else { return noErr }
-            
+        let sourceNode = AVAudioSourceNode { _, _, frameCount, audioBufferList -> OSStatus in
             let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
-            let phaseInc = 2.0 * Double.pi * self.frequency / sampleRate
+            let phaseInc = 2.0 * Double.pi * freq / sampleRate
+            
+            var phase: Double = 0 // Local variable for this callback
             
             for frame in 0..<Int(frameCount) {
                 let sample = Float(sin(phase))
@@ -78,32 +97,27 @@ final class ToneGeneratorService: ObservableObject {
                 // Write to all channels
                 for buffer in ablPointer {
                     let buf: UnsafeMutableBufferPointer<Float> = UnsafeMutableBufferPointer(buffer)
-                    buf[frame] = sample * 0.5 // 50% volume
+                    buf[frame] = sample * 0.3 // 30% volume
                 }
             }
             
             return noErr
         }
         
-        engine.attach(sourceNode)
-        engine.connect(sourceNode, to: mainMixer, format: outputFormat)
-        
-        // Configure audio session for playback
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default)
-            try session.setActive(true)
-        } catch {
-            print("[ToneGenerator] Failed to set audio session: \(error)")
-        }
+        newEngine.attach(sourceNode)
+        newEngine.connect(sourceNode, to: mainMixer, format: outputFormat)
         
         do {
-            try engine.start()
-            isPlaying = true
+            try newEngine.start()
+            self.audioEngine = newEngine
+            self.isPlaying = true
             
-            // Auto-stop after 1 second
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.stop()
+            // Auto-stop after 1 second using Task
+            autoStopTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                if !Task.isCancelled {
+                    self.stop()
+                }
             }
         } catch {
             print("[ToneGenerator] Failed to start engine: \(error)")
@@ -111,6 +125,9 @@ final class ToneGeneratorService: ObservableObject {
     }
     
     func stop() {
+        autoStopTask?.cancel()
+        autoStopTask = nil
+        
         audioEngine?.stop()
         audioEngine = nil
         isPlaying = false

@@ -21,7 +21,6 @@ final class PitchDetectionService: ObservableObject {
     
     private var audioEngine: AVAudioEngine?
     private var inputNode: AVAudioInputNode?
-    private let sampleRate: Double = 44100
     private let bufferSize: AVAudioFrameCount = 4096
     
     // Note names
@@ -31,13 +30,24 @@ final class PitchDetectionService: ObservableObject {
     private let minFrequency: Double = 80   // ~E2
     private let maxFrequency: Double = 1000 // ~B5
     
-    func start() async throws {
+    func start() async {
         guard !isDetecting else { return }
         
-        // Request microphone permission
-        let status = await requestMicrophonePermission()
-        guard status else {
-            throw PitchDetectionError.microphonePermissionDenied
+        // Request microphone permission first
+        let granted = await requestMicrophonePermission()
+        guard granted else {
+            print("[PitchDetection] Microphone permission denied")
+            return
+        }
+        
+        do {
+            // Configure audio session first
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
+            try session.setActive(true)
+        } catch {
+            print("[PitchDetection] Failed to configure audio session: \(error.localizedDescription)")
+            return
         }
         
         audioEngine = AVAudioEngine()
@@ -53,17 +63,26 @@ final class PitchDetectionService: ObservableObject {
             self?.processAudioBuffer(buffer)
         }
         
-        // Configure audio session
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetooth])
-        try session.setActive(true)
-        
-        try engine.start()
-        isDetecting = true
+        do {
+            try engine.start()
+            isDetecting = true
+        } catch {
+            print("[PitchDetection] Failed to start engine: \(error.localizedDescription)")
+            // Clean up on failure
+            if let input = inputNode {
+                input.removeTap(onBus: 0)
+            }
+            audioEngine = nil
+            inputNode = nil
+        }
     }
     
     func stop() {
-        inputNode?.removeTap(onBus: 0)
+        guard isDetecting else { return }
+        
+        if let input = inputNode {
+            input.removeTap(onBus: 0)
+        }
         audioEngine?.stop()
         audioEngine = nil
         inputNode = nil
@@ -73,7 +92,7 @@ final class PitchDetectionService: ObservableObject {
     
     private func requestMicrophonePermission() async -> Bool {
         await withCheckedContinuation { continuation in
-            AVAudioApplication.requestRecordPermission { granted in
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
                 continuation.resume(returning: granted)
             }
         }
@@ -111,6 +130,8 @@ final class PitchDetectionService: ObservableObject {
     private func detectPitch(samples: [Float]) -> Double? {
         let n = samples.count
         guard n > 0 else { return nil }
+        
+        let sampleRate = 44100.0
         
         // Calculate autocorrelation
         var correlations: [Float] = []
