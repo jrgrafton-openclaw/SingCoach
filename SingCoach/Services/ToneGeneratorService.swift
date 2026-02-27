@@ -80,7 +80,15 @@ final class ToneGeneratorService: ObservableObject {
         phaseHolder.phase = 0
         let phaseRef = phaseHolder  // capture the holder, not self — avoids retain cycle and is callback-safe
         
-        let node = AVAudioSourceNode { _, _, frameCount, audioBufferList -> OSStatus in
+        // IMPORTANT: The AVAudioSourceNode render block fires on a real-time audio thread.
+        // On iOS 26+ Swift 6 runtime, if this closure implicitly captures `@MainActor`-isolated
+        // state (even indirectly through `self`), Swift injects an actor isolation check
+        // (_swift_task_checkIsolatedSwift → dispatch_assert_queue_fail → EXC_BREAKPOINT crash).
+        //
+        // Fix: only capture plain non-isolated values (phaseRef: PhaseHolder class, phaseInc: Double).
+        // PhaseHolder is a non-isolated private class — safe to mutate from the audio thread.
+        // Never reference `self` or any @MainActor property inside this block.
+        let node = AVAudioSourceNode { [phaseRef, phaseInc] _, _, frameCount, audioBufferList -> OSStatus in
             let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
             
             for frame in 0..<Int(frameCount) {

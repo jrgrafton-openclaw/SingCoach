@@ -78,7 +78,6 @@ platform :ios do
     # network hang. Signing happens at export time using the profile we already downloaded.
     archive_path = "/Users/familybot/Library/Developer/Xcode/Archives/#{Time.now.strftime('%Y-%m-%d')}/SingCoach.xcarchive"
     sh %Q{
-      set -o pipefail
       cd '#{project_root}'
       xcodebuild \
         -scheme SingCoach \
@@ -88,8 +87,8 @@ platform :ios do
         -parallelizeTargets \
         COMPILER_INDEX_STORE_ENABLE=NO \
         ENABLE_BITCODE=NO \
-        CODE_SIGNING_ALLOWED=NO \
-        archive | xcpretty
+        SKIP_CRASHLYTICS_DSYM_UPLOAD=1 \
+        archive > /tmp/xcodebuild-archive.log 2>&1 || (tail -50 /tmp/xcodebuild-archive.log >&2; exit 1)
     }
 
     # Export phase: sign and package the IPA
@@ -100,13 +99,17 @@ platform :ios do
       <plist version="1.0">
       <dict>
         <key>method</key>
-        <string>app-store</string>
+        <string>app-store-connect</string>
         <key>teamID</key>
         <string>B5X96QDRF4</string>
         <key>uploadSymbols</key>
         <true/>
         <key>compileBitcode</key>
         <false/>
+        <key>signingStyle</key>
+        <string>manual</string>
+        <key>signingCertificate</key>
+        <string>Apple Distribution: james grafton</string>
         <key>provisioningProfiles</key>
         <dict>
           <key>com.jrgrafton.singcoach</key>
@@ -155,7 +158,7 @@ platform :ios do
     UI.message("Uploading IPA to App Store Connect...")
     sh %Q{
       mkdir -p ~/.appstoreconnect/private_keys
-      ln -sf "#{key_path}" ~/.appstoreconnect/private_keys/AuthKey_#{key_id}.p8
+      ln -sf "$(realpath #{key_path.shellescape})" ~/.appstoreconnect/private_keys/AuthKey_#{key_id}.p8
       xcrun altool --upload-app \
         --type ios \
         --file "#{ipa_path}" \

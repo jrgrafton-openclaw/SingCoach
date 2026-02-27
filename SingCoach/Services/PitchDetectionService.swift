@@ -67,22 +67,28 @@ final class PitchDetectionService: ObservableObject {
             return
         }
         
-        // Install tap — the callback fires on an AVAudio internal thread.
-        // We copy the data immediately then hop to the main queue.
-        // IMPORTANT: Do NOT use `Task { @MainActor }` here — creating a Task from an AVAudio
-        // callback thread causes Swift Concurrency to assert actor isolation via
-        // _swift_task_checkIsolatedSwift → dispatch_assert_queue_fail → EXC_BREAKPOINT crash.
-        // DispatchQueue.main.async is safe from any thread.
-        input.installTap(onBus: 0, bufferSize: bufferSize, format: format) { [weak self] buffer, _ in
-            // Copy samples out of the buffer immediately (buffer may be reused)
+        // Install tap — the callback fires on an AVAudio internal thread (real-time, not main).
+        // IMPORTANT: Do NOT capture `self` directly in the outer closure — on iOS 26+ Swift 6
+        // runtime, capturing a @MainActor-isolated `self` causes an implicit isolation check
+        // (_swift_task_checkIsolatedSwift → dispatch_assert_queue_fail → EXC_BREAKPOINT crash).
+        //
+        // Fix: capture an unowned Unmanaged reference to avoid the @MainActor capture, copy all
+        // data locally, then hop to DispatchQueue.main for the @MainActor update.
+        // Do NOT use `Task { @MainActor }` from here — Swift Concurrency tasks assert their
+        // executor context on creation, which also crashes on audio threads.
+        let weakSelf = Unmanaged.passUnretained(self)
+        input.installTap(onBus: 0, bufferSize: bufferSize, format: format) { buffer, _ in
+            // Copy samples out immediately — buffer may be reused after this callback returns
             guard let channelData = buffer.floatChannelData?[0] else { return }
             let frameCount = Int(buffer.frameLength)
             guard frameCount > 0 else { return }
             let samples = Array(UnsafeBufferPointer(start: channelData, count: frameCount))
-            let sampleRate = format.sampleRate
+            let sr = format.sampleRate
             
-            DispatchQueue.main.async { [weak self] in
-                self?.handleSamples(samples, sampleRate: sampleRate)
+            // Hop to main thread for @MainActor work — DispatchQueue.main.async is safe from
+            // any thread and does NOT trigger Swift Concurrency actor isolation assertions.
+            DispatchQueue.main.async {
+                weakSelf.takeUnretainedValue().handleSamples(samples, sampleRate: sr)
             }
         }
         
