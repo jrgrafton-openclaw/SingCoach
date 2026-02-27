@@ -74,36 +74,69 @@ platform :ios do
     UI.message("Incrementing build: #{current_build} → #{next_build}")
     sh "/usr/libexec/PlistBuddy -c 'Set CFBundleVersion #{next_build}' '#{info_plist_path}'"
 
-    build_app(
-      project: "SingCoach.xcodeproj",
-      scheme: "SingCoach",
-      export_method: "app-store",
-      clean: false,           # Incremental builds — only recompiles changed files
-      output_directory: "./build",
-      output_name: "SingCoach.ipa",
-      # Keep dSYMs for Crashlytics symbolication
-      include_symbols: true,
-      include_bitcode: false,  # Bitcode is deprecated; skipping saves export time
-      # Speed up build + avoid GatherProvisioningInputs network hang
-      xcargs: "-parallelizeTargets COMPILER_INDEX_STORE_ENABLE=NO ENABLE_BITCODE=NO -allowProvisioningUpdates"
-    )
+    # Build phase: archive with CODE_SIGNING_ALLOWED=NO to skip GatherProvisioningInputs
+    # network hang. Signing happens at export time using the profile we already downloaded.
+    archive_path = "/Users/familybot/Library/Developer/Xcode/Archives/#{Time.now.strftime('%Y-%m-%d')}/SingCoach.xcarchive"
+    sh %Q{
+      set -o pipefail
+      xcodebuild \
+        -scheme SingCoach \
+        -project SingCoach.xcodeproj \
+        -destination 'generic/platform=iOS' \
+        -archivePath '#{archive_path}' \
+        -parallelizeTargets \
+        COMPILER_INDEX_STORE_ENABLE=NO \
+        ENABLE_BITCODE=NO \
+        CODE_SIGNING_ALLOWED=NO \
+        archive | xcpretty
+    }
 
-    ipa_path = File.expand_path("../build/SingCoach.ipa", __dir__)
-    dsym_path = File.expand_path("../build/SingCoach.app.dSYM.zip", __dir__)
+    # Export phase: sign and package the IPA
+    export_options_path = "/tmp/SingCoach_export_options.plist"
+    File.write(export_options_path, <<~PLIST)
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+        <key>method</key>
+        <string>app-store</string>
+        <key>teamID</key>
+        <string>B5X96QDRF4</string>
+        <key>uploadSymbols</key>
+        <true/>
+        <key>compileBitcode</key>
+        <false/>
+        <key>provisioningProfiles</key>
+        <dict>
+          <key>com.jrgrafton.singcoach</key>
+          <string>a2f617cd-0c79-406d-97fe-351d08a2eb60</string>
+        </dict>
+      </dict>
+      </plist>
+    PLIST
+
+    FileUtils.mkdir_p("./build")
+    sh %Q{
+      xcodebuild \
+        -exportArchive \
+        -archivePath '#{archive_path}' \
+        -exportPath './build' \
+        -exportOptionsPlist '#{export_options_path}'
+    }
+
+    ipa_path = Dir.glob(File.expand_path("../build/*.ipa", __dir__)).first ||
+               File.expand_path("../build/SingCoach.ipa", __dir__)
+    dsym_path = File.expand_path("#{archive_path}/dSYMs/SingCoach.app.dSYM")
 
     # Upload dSYM to Firebase Crashlytics.
-    # upload-symbols lives in DerivedData (SPM checkouts) — find it dynamically.
+    # dSYM is a directory inside the xcarchive — find upload-symbols from DerivedData.
     if File.exist?(dsym_path)
       UI.message("Uploading dSYM to Firebase Crashlytics...")
       upload_symbols_binary = Dir.glob(
         File.expand_path("~/Library/Developer/Xcode/DerivedData/SingCoach-*/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols")
       ).first
       if upload_symbols_binary
-        upload_symbols_to_crashlytics(
-          dsym_path: dsym_path,
-          gsp_path: "#{project_root}/SingCoach/GoogleService-Info.plist",
-          binary_path: upload_symbols_binary
-        ) rescue UI.important("⚠️  dSYM upload failed — upload manually via Firebase Console if needed")
+        sh "#{upload_symbols_binary} -gsp '#{project_root}/SingCoach/GoogleService-Info.plist' -p ios '#{dsym_path}'" rescue UI.important("⚠️  dSYM upload failed — upload manually via Firebase Console if needed")
       else
         UI.important("⚠️  upload-symbols binary not found in DerivedData — skipping dSYM upload")
       end
