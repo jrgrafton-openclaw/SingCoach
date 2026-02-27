@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import FirebaseCore
 import FirebaseAnalytics
+import FirebaseCrashlytics
 
 @main
 struct SingCoachApp: App {
@@ -12,7 +13,13 @@ struct SingCoachApp: App {
     init() {
         FirebaseApp.configure()
         Analytics.setAnalyticsCollectionEnabled(true)
-        print("[SingCoach] App initialised, Firebase configured")
+
+        // Crashlytics — enable crash reporting.
+        // Crashes are uploaded on the NEXT launch after a crash occurs.
+        // View reports at: https://console.firebase.google.com → SingCoach → Crashlytics
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
+
+        print("[SingCoach] App initialised, Firebase configured, Crashlytics enabled")
     }
 
     var body: some Scene {
