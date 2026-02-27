@@ -290,6 +290,7 @@
 				2366E4E58EE471307ACA0291 /* Sources */,
 				29F38ADACE82BB9635DE7A77 /* Resources */,
 				936FFFE6E73E08A2BBA0FC7A /* Frameworks */,
+				8D45B48E644E3048C7E63600 /* Upload Crashlytics dSYMs */,
 			);
 			buildRules = (
 			);
@@ -369,6 +370,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		8D45B48E644E3048C7E63600 /* Upload Crashlytics dSYMs */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Upload Crashlytics dSYMs";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${CONFIGURATION}\" = \"Distribution\" ]; then\n  DERIVED_DATA=\"${BUILD_DIR%Build/*}\"\n  SDK_PATH=$(find \"${DERIVED_DATA}Build/Intermediates.noindex\" -name \"upload-symbols\" -path \"*/Crashlytics/*\" 2>/dev/null | head -1)\n  if [ -z \"$SDK_PATH\" ]; then\n    SDK_PATH=$(find \"${DERIVED_DATA}SourcePackages/checkouts\" -name \"upload-symbols\" -path \"*/Crashlytics/*\" 2>/dev/null | head -1)\n  fi\n  if [ -n \"$SDK_PATH\" ]; then\n    \"$SDK_PATH\" -gsp \"${SRCROOT}/SingCoach/GoogleService-Info.plist\" -p ios \"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n  else\n    echo \"warning: upload-symbols not found - skipping Crashlytics dSYM upload\"\n  fi\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2366E4E58EE471307ACA0291 /* Sources */ = {
@@ -453,7 +475,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.jrgrafton.singcoach;
-				PROVISIONING_PROFILE = "81638313-881c-466d-8de9-ba90f58658a7";
+				PROVISIONING_PROFILE = "91f3a36e-e256-489b-91e4-3e5abbaa55ca";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -534,7 +556,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.jrgrafton.singcoach;
-				PROVISIONING_PROFILE = "81638313-881c-466d-8de9-ba90f58658a7";
+				PROVISIONING_PROFILE = "91f3a36e-e256-489b-91e4-3e5abbaa55ca";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -621,7 +643,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.jrgrafton.singcoach;
-				PROVISIONING_PROFILE = "81638313-881c-466d-8de9-ba90f58658a7";
+				PROVISIONING_PROFILE = "91f3a36e-e256-489b-91e4-3e5abbaa55ca";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
@@ -643,7 +665,7 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.jrgrafton.singcoach;
-				PROVISIONING_PROFILE = "81638313-881c-466d-8de9-ba90f58658a7";
+				PROVISIONING_PROFILE = "91f3a36e-e256-489b-91e4-3e5abbaa55ca";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SingCoach.app/SingCoach";
