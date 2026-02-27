@@ -69,27 +69,25 @@ final class PitchDetectionService: ObservableObject {
         
         // Install tap — the callback fires on an AVAudio internal thread (real-time, not main).
         //
-        // IMPORTANT — iOS 26 / Swift 6 actor isolation crash:
-        // The Swift 6 runtime injects an actor-isolation assertion at the POINT OF CLOSURE
-        // CAPTURE, not just at the call site. If `self` (a @MainActor-isolated type) appears
-        // in the closure capture list — even as `[weak self]` — the compiler emits a hidden
-        // call to _swift_task_checkIsolatedSwift when the closure is *created* on the audio
-        // thread. That check calls dispatch_assert_queue_fail → EXC_BREAKPOINT crash.
+        // CRITICAL — iOS 26 / Swift 6 actor isolation crash:
+        // Any closure defined inside a @MainActor method inherits @MainActor isolation
+        // in its compiler-generated thunk, REGARDLESS of what it captures. When the thunk
+        // executes on an audio thread, the runtime calls _swift_task_checkIsolatedSwift →
+        // dispatch_assert_queue_fail → EXC_BREAKPOINT crash.
         //
-        // Fix: wrap `self` in a nonisolated `AudioWeakRef` box before the closure, so the
-        // closure captures only a plain nonisolated object. Hop to DispatchQueue.main.async
-        // (NOT Task { @MainActor }) for the actual @MainActor work — DispatchQueue is safe
-        // from any thread and carries no Swift Concurrency actor assertions.
+        // FIX: The tap closure is created by makeAudioTapHandler() — a nonisolated free
+        // function in AudioCallbacks.swift. The closure it returns carries NO actor
+        // annotation and is safe to run on any thread. We pass only a @Sendable handler
+        // that hops to main via DispatchQueue.main.async.
         let ref = AudioWeakRef(self)
-        let sr = format.sampleRate
-        input.installTap(onBus: 0, bufferSize: bufferSize, format: format) { buffer, _ in
-            // Copy samples out immediately — buffer is reused after this callback returns.
-            guard let channelData = buffer.floatChannelData?[0] else { return }
-            let frameCount = Int(buffer.frameLength)
-            guard frameCount > 0 else { return }
-            let samples = Array(UnsafeBufferPointer(start: channelData, count: frameCount))
-            DispatchQueue.main.async { ref.value?.handleSamples(samples, sampleRate: sr) }
+        let tapHandler = makeAudioTapHandler(sampleRate: format.sampleRate) { [ref] samples, sr in
+            // We are called from DispatchQueue.main.async — we ARE on the main actor.
+            // Use assumeIsolated to tell the compiler this without adding a check.
+            MainActor.assumeIsolated {
+                ref.value?.handleSamples(samples, sampleRate: sr)
+            }
         }
+        input.installTap(onBus: 0, bufferSize: bufferSize, format: format, block: tapHandler)
         
         do {
             try engine.start()

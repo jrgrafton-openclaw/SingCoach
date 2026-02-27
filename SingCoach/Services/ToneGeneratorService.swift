@@ -80,32 +80,16 @@ final class ToneGeneratorService: ObservableObject {
         phaseHolder.phase = 0
         let phaseRef = phaseHolder  // capture the holder, not self — avoids retain cycle and is callback-safe
         
-        // IMPORTANT: The AVAudioSourceNode render block fires on a real-time audio thread.
-        // On iOS 26+ Swift 6 runtime, if this closure implicitly captures `@MainActor`-isolated
-        // state (even indirectly through `self`), Swift injects an actor isolation check
-        // (_swift_task_checkIsolatedSwift → dispatch_assert_queue_fail → EXC_BREAKPOINT crash).
+        // CRITICAL — iOS 26 / Swift 6 actor isolation crash:
+        // Any closure defined inside a @MainActor method inherits @MainActor isolation
+        // in its compiler-generated thunk, REGARDLESS of captures. When the thunk runs
+        // on the AURemoteIO audio thread → _swift_task_checkIsolatedSwift →
+        // dispatch_assert_queue_fail → EXC_BREAKPOINT crash.
         //
-        // Fix: only capture plain non-isolated values (phaseRef: PhaseHolder class, phaseInc: Double).
-        // PhaseHolder is a non-isolated private class — safe to mutate from the audio thread.
-        // Never reference `self` or any @MainActor property inside this block.
-        let node = AVAudioSourceNode { [phaseRef, phaseInc] _, _, frameCount, audioBufferList -> OSStatus in
-            let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
-            
-            for frame in 0..<Int(frameCount) {
-                let sample = Float(sin(phaseRef.phase)) * 0.3
-                phaseRef.phase += phaseInc
-                if phaseRef.phase > 2.0 * Double.pi {
-                    phaseRef.phase -= 2.0 * Double.pi
-                }
-                for buffer in ablPointer {
-                    let buf: UnsafeMutableBufferPointer<Float> = UnsafeMutableBufferPointer(buffer)
-                    if frame < buf.count {
-                        buf[frame] = sample
-                    }
-                }
-            }
-            return noErr
-        }
+        // FIX: The render block is created by makeSineRenderBlock() — a nonisolated free
+        // function in AudioCallbacks.swift. Its closure carries NO actor annotation.
+        let renderBlock = makeSineRenderBlock(phaseHolder: phaseRef, phaseIncrement: phaseInc)
+        let node = AVAudioSourceNode(renderBlock: renderBlock)
         
         newEngine.attach(node)
         newEngine.connect(node, to: mainMixer, format: outputFormat)
@@ -151,6 +135,7 @@ final class ToneGeneratorService: ObservableObject {
 
 /// Holds a mutable phase value that can be safely captured by the AVAudioSourceNode render callback.
 /// Using a class (reference type) avoids data races from value-type captures.
-private final class PhaseHolder {
+/// Internal (not private) so AudioCallbacks.swift can reference it.
+final class PhaseHolder: @unchecked Sendable {
     var phase: Double = 0
 }

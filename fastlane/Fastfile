@@ -158,7 +158,7 @@ platform :ios do
     UI.message("Uploading IPA to App Store Connect...")
     sh %Q{
       mkdir -p ~/.appstoreconnect/private_keys
-      ln -sf "$(realpath #{key_path.shellescape})" ~/.appstoreconnect/private_keys/AuthKey_#{key_id}.p8
+      ln -sf "#{key_path}" ~/.appstoreconnect/private_keys/AuthKey_#{key_id}.p8
       xcrun altool --upload-app \
         --type ios \
         --file "#{ipa_path}" \
