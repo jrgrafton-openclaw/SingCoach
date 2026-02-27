@@ -33,11 +33,11 @@ platform :ios do
   lane :beta do
     api_key
 
-    # Unlock the no-password build keychain.
-    # set-key-partition-list can be slow on large keychains — run in background and
-    # continue; it will finish before codesign needs it.
+    # Unlock the no-password build keychain and grant codesign access.
+    # set-key-partition-list MUST complete before xcodebuild starts — otherwise
+    # GatherProvisioningInputs hangs waiting for keychain access.
     sh "security unlock-keychain -p '' ~/Library/Keychains/build.keychain-db"
-    sh "security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k '' ~/Library/Keychains/build.keychain-db > /dev/null 2>&1 & true"
+    sh "security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k '' ~/Library/Keychains/build.keychain-db 2>/dev/null || true"
     sh "security list-keychains -d user -s ~/Library/Keychains/build.keychain-db ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain"
 
     # Create JSON key file for tools that need it
@@ -84,8 +84,8 @@ platform :ios do
       # Keep dSYMs for Crashlytics symbolication
       include_symbols: true,
       include_bitcode: false,  # Bitcode is deprecated; skipping saves export time
-      # Pass xcargs to speed up the build
-      xcargs: "-parallelizeTargets COMPILER_INDEX_STORE_ENABLE=NO"
+      # Speed up build + avoid GatherProvisioningInputs network hang
+      xcargs: "-parallelizeTargets COMPILER_INDEX_STORE_ENABLE=NO ENABLE_BITCODE=NO -allowProvisioningUpdates"
     )
 
     ipa_path = File.expand_path("../build/SingCoach.ipa", __dir__)
