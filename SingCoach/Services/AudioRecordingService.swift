@@ -60,11 +60,14 @@ final class AudioRecordingService: NSObject, ObservableObject, AudioRecordingPro
         startTime = Date()
         isRecording = true
 
-        // Set up amplitude monitoring
-        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.updateAmplitude()
-            }
+        // Set up amplitude monitoring.
+        // IMPORTANT: Timer callbacks fire on the run-loop thread (usually main), but
+        // `Task { @MainActor }` from inside a Timer callback can trigger Swift 6 actor
+        // isolation assertions on iOS 26+ → EXC_BREAKPOINT crash.
+        // Use DispatchQueue.main.async instead — it is always safe from any thread.
+        let ref = AudioWeakRef(self)
+        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            DispatchQueue.main.async { ref.value?.updateAmplitude() }
         }
 
         print("[SingCoach] Recording started: \(relativePath)")

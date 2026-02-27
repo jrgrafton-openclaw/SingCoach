@@ -112,10 +112,11 @@ final class AudioPlaybackService: NSObject, ObservableObject, AudioPlayerProtoco
 
     private func startTimer() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.currentTime = self?.audioPlayer?.currentTime ?? 0
-            }
+        // IMPORTANT: `Task { @MainActor }` inside a Timer callback can trigger Swift 6 actor
+        // isolation assertions on iOS 26+ → EXC_BREAKPOINT crash. Use DispatchQueue.main.async.
+        let ref = AudioWeakRef(self)
+        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            DispatchQueue.main.async { ref.value?.currentTime = ref.value?.audioPlayer?.currentTime ?? 0 }
         }
     }
 }

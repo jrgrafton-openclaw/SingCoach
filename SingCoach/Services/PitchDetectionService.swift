@@ -68,28 +68,27 @@ final class PitchDetectionService: ObservableObject {
         }
         
         // Install tap — the callback fires on an AVAudio internal thread (real-time, not main).
-        // IMPORTANT: Do NOT capture `self` directly in the outer closure — on iOS 26+ Swift 6
-        // runtime, capturing a @MainActor-isolated `self` causes an implicit isolation check
-        // (_swift_task_checkIsolatedSwift → dispatch_assert_queue_fail → EXC_BREAKPOINT crash).
         //
-        // Fix: capture an unowned Unmanaged reference to avoid the @MainActor capture, copy all
-        // data locally, then hop to DispatchQueue.main for the @MainActor update.
-        // Do NOT use `Task { @MainActor }` from here — Swift Concurrency tasks assert their
-        // executor context on creation, which also crashes on audio threads.
-        let weakSelf = Unmanaged.passUnretained(self)
+        // IMPORTANT — iOS 26 / Swift 6 actor isolation crash:
+        // The Swift 6 runtime injects an actor-isolation assertion at the POINT OF CLOSURE
+        // CAPTURE, not just at the call site. If `self` (a @MainActor-isolated type) appears
+        // in the closure capture list — even as `[weak self]` — the compiler emits a hidden
+        // call to _swift_task_checkIsolatedSwift when the closure is *created* on the audio
+        // thread. That check calls dispatch_assert_queue_fail → EXC_BREAKPOINT crash.
+        //
+        // Fix: wrap `self` in a nonisolated `AudioWeakRef` box before the closure, so the
+        // closure captures only a plain nonisolated object. Hop to DispatchQueue.main.async
+        // (NOT Task { @MainActor }) for the actual @MainActor work — DispatchQueue is safe
+        // from any thread and carries no Swift Concurrency actor assertions.
+        let ref = AudioWeakRef(self)
+        let sr = format.sampleRate
         input.installTap(onBus: 0, bufferSize: bufferSize, format: format) { buffer, _ in
-            // Copy samples out immediately — buffer may be reused after this callback returns
+            // Copy samples out immediately — buffer is reused after this callback returns.
             guard let channelData = buffer.floatChannelData?[0] else { return }
             let frameCount = Int(buffer.frameLength)
             guard frameCount > 0 else { return }
             let samples = Array(UnsafeBufferPointer(start: channelData, count: frameCount))
-            let sr = format.sampleRate
-            
-            // Hop to main thread for @MainActor work — DispatchQueue.main.async is safe from
-            // any thread and does NOT trigger Swift Concurrency actor isolation assertions.
-            DispatchQueue.main.async {
-                weakSelf.takeUnretainedValue().handleSamples(samples, sampleRate: sr)
-            }
+            DispatchQueue.main.async { ref.value?.handleSamples(samples, sampleRate: sr) }
         }
         
         do {

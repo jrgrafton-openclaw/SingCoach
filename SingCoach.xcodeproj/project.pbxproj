@@ -56,6 +56,7 @@
 		F214DAC388281667FF9B0F31 /* SongsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D8F8BB321CBED7418F90E42 /* SongsViewModel.swift */; };
 		F7317D4E6E86C3225F206D2F /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E4793EA7AD576C9950F638 /* EmptyStateView.swift */; };
 		F9A58A1C30FEC453845EFDF9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2103E89DE2BBF5C9795F3769 /* Assets.xcassets */; };
+		622EECF4DB164DEF92F9FA42 /* AudioWeakRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FE3422A9CE44F8BA1FEB3A /* AudioWeakRef.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +70,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		44FE3422A9CE44F8BA1FEB3A /* AudioWeakRef.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioWeakRef.swift; sourceTree = "<group>"; };
 		0D8F8BB321CBED7418F90E42 /* SongsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsViewModel.swift; sourceTree = "<group>"; };
 		10E9BAD8CCE3C621E610496B /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		170561558CB898099577C765 /* GeminiAnalysisService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiAnalysisService.swift; sourceTree = "<group>"; };
@@ -244,10 +246,19 @@
 				FB7145334B1A7BCD8E799C90 /* Models */,
 				A324B03FC19A167F0C680C0B /* Services */,
 				952ED3EBC9DCB9AE9A80F0F5 /* Theme */,
+				F4759B77EB914DE4BC145671 /* Utilities */,
 				7830C06492B83E7B2F6758D3 /* ViewModels */,
 				C0E96F0A0E7ACF5BA6BD6721 /* Views */,
 			);
 			path = SingCoach;
+			sourceTree = "<group>";
+		};
+		F4759B77EB914DE4BC145671 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				44FE3422A9CE44F8BA1FEB3A /* AudioWeakRef.swift */,
+			);
+			path = Utilities;
 			sourceTree = "<group>";
 		};
 		FB7145334B1A7BCD8E799C90 /* Models */ = {
@@ -397,6 +408,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				622EECF4DB164DEF92F9FA42 /* AudioWeakRef.swift in Sources */,
 				45F81578619BDEBCAFCACA3D /* AddSongView.swift in Sources */,
 				CE0987021739A12EB58F0A64 /* AnalyticsService.swift in Sources */,
 				2D61A3BBDB65738AE7A1C364 /* AppleMusicService.swift in Sources */,
