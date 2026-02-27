@@ -79,6 +79,7 @@ platform :ios do
     archive_path = "/Users/familybot/Library/Developer/Xcode/Archives/#{Time.now.strftime('%Y-%m-%d')}/SingCoach.xcarchive"
     sh %Q{
       set -o pipefail
+      cd '#{project_root}'
       xcodebuild \
         -scheme SingCoach \
         -project SingCoach.xcodeproj \
@@ -115,12 +116,13 @@ platform :ios do
       </plist>
     PLIST
 
-    FileUtils.mkdir_p("./build")
+    build_output = File.expand_path("../build", __dir__)
+    FileUtils.mkdir_p(build_output)
     sh %Q{
       xcodebuild \
         -exportArchive \
         -archivePath '#{archive_path}' \
-        -exportPath './build' \
+        -exportPath '#{build_output}' \
         -exportOptionsPlist '#{export_options_path}'
     }
 
