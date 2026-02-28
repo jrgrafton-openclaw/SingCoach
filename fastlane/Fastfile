@@ -252,7 +252,7 @@ PYEOF
     add_git_tag(tag: "v#{version_number}-build#{build_number}")
     push_git_tags
     git_commit(
-      path: ["SingCoach.xcodeproj/project.pbxproj"],
+      path: ["SingCoach.xcodeproj/project.pbxproj", "SingCoach/Info.plist"],
       message: "[ci skip] Bump build to #{build_number}"
     )
     push_to_git_remote
