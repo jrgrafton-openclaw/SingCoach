@@ -8,3 +8,13 @@ GoogleService-Info.plist
 Pods/
 .bundle/
 vendor/bundle/
+
+# Signing artifacts — fetched by fastlane, never committed
+*.cer
+*.mobileprovision
+*.p12
+
+# Fastlane auto-generated
+fastlane/report.xml
+fastlane/README.md
+fastlane/*.mobileprovision
