@@ -3,6 +3,9 @@ default_platform(:ios)
 platform :ios do
   before_all do
     setup_ci if ENV['CI']
+    # Lesson #11: altool crashes with "invalid byte sequence in US-ASCII" without this
+    ENV['LC_ALL'] = 'en_US.UTF-8'
+    ENV['LANG']   = 'en_US.UTF-8'
   end
 
   private_lane :api_key do
@@ -113,7 +116,7 @@ platform :ios do
         <key>provisioningProfiles</key>
         <dict>
           <key>com.jrgrafton.singcoach</key>
-          <string>a2f617cd-0c79-406d-97fe-351d08a2eb60</string>
+          <string>#{profile_uuid}</string>
         </dict>
       </dict>
       </plist>
@@ -253,7 +256,8 @@ PYEOF
     push_git_tags
     git_commit(
       path: ["SingCoach.xcodeproj/project.pbxproj", "SingCoach/Info.plist"],
-      message: "[ci skip] Bump build to #{build_number}"
+      message: "[ci skip] Bump build to #{build_number}",
+      allow_nothing_to_commit: true
     )
     push_to_git_remote
   end
