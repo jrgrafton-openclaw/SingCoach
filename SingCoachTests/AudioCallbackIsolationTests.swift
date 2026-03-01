@@ -18,7 +18,7 @@ final class AudioCallbackIsolationTests: XCTestCase {
     /// invoked on a background thread without crashing.
     /// This is the exact scenario that caused EXC_BREAKPOINT on iOS 26:
     /// AVAudioNodeTap fires the closure on an internal audio dispatch queue.
-    func testTapHandlerRunsOnBackgroundThreadWithoutCrash() {
+    @MainActor func testTapHandlerRunsOnBackgroundThreadWithoutCrash() {
         let expectation = expectation(description: "handler called on main")
 
         var receivedSamples: [Float]?
@@ -61,17 +61,23 @@ final class AudioCallbackIsolationTests: XCTestCase {
         XCTAssertEqual(receivedRate, 44100.0)
     }
 
-    // MARK: - makeSineRenderBlock isolation test
+    // MARK: - makePianoRenderBlock isolation test
 
-    /// Verify that the render block returned by makeSineRenderBlock() can be
+    /// Verify that the render block returned by makePianoRenderBlock() can be
     /// invoked on a background thread without crashing.
     /// This simulates AURemoteIO::IOThread calling the render callback.
-    func testRenderBlockRunsOnBackgroundThreadWithoutCrash() {
+    @MainActor func testRenderBlockRunsOnBackgroundThreadWithoutCrash() {
         let expectation = expectation(description: "render block completed")
         let phase = PhaseHolder()
+        let envelope = EnvelopeHolder()
         let phaseInc = 2.0 * Double.pi * 440.0 / 44100.0
 
-        let renderBlock = makeSineRenderBlock(phaseHolder: phase, phaseIncrement: phaseInc)
+        let renderBlock = makePianoRenderBlock(
+            phaseHolder: phase,
+            phaseIncrement: phaseInc,
+            envelopeHolder: envelope,
+            sampleRate: 44100.0
+        )
 
         // Simulate AURemoteIO IOThread: invoke render block on a background queue
         let ioQueue = DispatchQueue(label: "test.auremoteio", qos: .userInteractive)
@@ -127,7 +133,7 @@ final class AudioCallbackIsolationTests: XCTestCase {
     // MARK: - PhaseHolder thread safety
 
     /// PhaseHolder must be usable from a non-main thread without crashes.
-    func testPhaseHolderIsNonisolated() {
+    @MainActor func testPhaseHolderIsNonisolated() {
         let expectation = expectation(description: "phase holder accessed")
         let phase = PhaseHolder()
 

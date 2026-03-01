@@ -13,7 +13,7 @@ struct PracticeToolsView: View {
     @State private var isPracticing = false
     @State private var elapsedSeconds: Double = 0
     @State private var timerCancellable: AnyCancellable?
-    @State private var selectedMidiNote: Int = 53 // Default: F3 (middle of range)
+    @State private var selectedMidiNote: Int = 54 // Default: F#3 (actual middle of vocal range)
     
     var body: some View {
         VStack(spacing: 0) {
@@ -61,18 +61,19 @@ struct PracticeToolsView: View {
                     ? Color(hex: "#32D74B")
                     : SingCoachTheme.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)
+                .animation(.easeInOut(duration: 0.15), value: pitchDetector.currentPitch?.noteName)
+                .contentTransition(.numericText())
             
             // Status text - centered below note
             Text(statusText)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(SingCoachTheme.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .center)
+                .animation(.easeInOut(duration: 0.15), value: statusText)
             
             gaugeView
         }
         .padding(20)
-        .background(SingCoachTheme.surface)
-        .cornerRadius(16)
     }
     
     private var statusText: String {
@@ -111,6 +112,7 @@ struct PracticeToolsView: View {
                     .shadow(color: .white.opacity(0.8), radius: 4)
                     .position(x: needlePosition(in: geometry.size.width),
                               y: geometry.size.height / 2)
+                    .animation(.interpolatingSpring(stiffness: 120, damping: 14), value: pitchDetector.currentPitch?.cents)
             }
         }
         .frame(height: 20)
@@ -185,8 +187,6 @@ struct PracticeToolsView: View {
                 .foregroundColor(SingCoachTheme.textSecondary)
         }
         .padding(16)
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(16)
     }
     
     // MARK: - Bottom Controls

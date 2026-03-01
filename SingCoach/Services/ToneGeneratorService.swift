@@ -13,6 +13,8 @@ final class ToneGeneratorService: ObservableObject {
     
     // Atomic phase tracker shared with audio callback — protected by being a class
     private let phaseHolder = PhaseHolder()
+    private var envelopeHolder = EnvelopeHolder()
+    private var fadeOutTask: Task<Void, Never>?
     
     // Note names for display — nonisolated so they can be called from any context (tests, SwiftUI, etc.)
     nonisolated static let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -47,9 +49,11 @@ final class ToneGeneratorService: ObservableObject {
     }
     
     func play(frequency: Double) {
-        // Cancel any pending auto-stop before touching the engine
+        // Cancel any pending auto-stop / fade-out before touching the engine
         autoStopTask?.cancel()
         autoStopTask = nil
+        fadeOutTask?.cancel()
+        fadeOutTask = nil
         
         // Tear down existing engine cleanly before creating a new one
         tearDownEngine()
@@ -76,8 +80,10 @@ final class ToneGeneratorService: ObservableObject {
         let sampleRate = outputFormat.sampleRate
         let phaseInc = 2.0 * Double.pi * frequency / sampleRate
         
-        // Reset phase for clean start
+        // Reset phase and envelope for clean start
         phaseHolder.phase = 0
+        let newEnvelope = EnvelopeHolder()
+        envelopeHolder = newEnvelope
         let phaseRef = phaseHolder  // capture the holder, not self — avoids retain cycle and is callback-safe
         
         // CRITICAL — iOS 26 / Swift 6 actor isolation crash:
@@ -86,9 +92,14 @@ final class ToneGeneratorService: ObservableObject {
         // on the AURemoteIO audio thread → _swift_task_checkIsolatedSwift →
         // dispatch_assert_queue_fail → EXC_BREAKPOINT crash.
         //
-        // FIX: The render block is created by makeSineRenderBlock() — a nonisolated free
+        // FIX: The render block is created by makePianoRenderBlock() — a nonisolated free
         // function in AudioCallbacks.swift. Its closure carries NO actor annotation.
-        let renderBlock = makeSineRenderBlock(phaseHolder: phaseRef, phaseIncrement: phaseInc)
+        let renderBlock = makePianoRenderBlock(
+            phaseHolder: phaseRef,
+            phaseIncrement: phaseInc,
+            envelopeHolder: newEnvelope,
+            sampleRate: sampleRate
+        )
         let node = AVAudioSourceNode(renderBlock: renderBlock)
         
         newEngine.attach(node)
@@ -100,11 +111,12 @@ final class ToneGeneratorService: ObservableObject {
             self.sourceNode = node
             self.isPlaying = true
             
-            // Auto-stop after 1 second
+            // Auto-stop after 1 second — initiate fade-out 50ms before teardown
             autoStopTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                // Play for ~950ms, then start a 50ms fade-out, then tear down
+                try? await Task.sleep(nanoseconds: 950_000_000)
                 guard !Task.isCancelled else { return }
-                self?.stop()
+                self?.beginFadeOut()
             }
         } catch {
             print("[ToneGenerator] Failed to start engine: \(error)")
@@ -112,10 +124,34 @@ final class ToneGeneratorService: ObservableObject {
         }
     }
     
+    /// Triggers a smooth fade-out on the audio thread, then tears down the engine.
+    private func beginFadeOut() {
+        let fadeMs: Double = 50 // 50ms fade — eliminates click
+        let sampleRate = audioEngine?.outputNode.inputFormat(forBus: 0).sampleRate ?? 44100
+        let fadeSamples = Int(fadeMs / 1000.0 * sampleRate)
+        envelopeHolder.startFadeOut(samples: fadeSamples)
+        
+        fadeOutTask = Task { @MainActor [weak self] in
+            // Wait for the fade-out to complete + a small margin
+            try? await Task.sleep(nanoseconds: UInt64(fadeMs * 1_500_000)) // 1.5x the fade duration
+            guard !Task.isCancelled else { return }
+            self?.tearDownEngine()
+        }
+    }
+    
     func stop() {
         autoStopTask?.cancel()
         autoStopTask = nil
-        tearDownEngine()
+        fadeOutTask?.cancel()
+        fadeOutTask = nil
+        // If currently playing, fade out gracefully; otherwise just tear down.
+        // Set isPlaying = false immediately so callers see the state change right away.
+        if isPlaying && audioEngine != nil {
+            isPlaying = false
+            beginFadeOut()
+        } else {
+            tearDownEngine()
+        }
     }
     
     private func tearDownEngine() {
