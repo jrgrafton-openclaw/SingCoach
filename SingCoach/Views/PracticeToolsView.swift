@@ -243,22 +243,40 @@ struct PracticeToolsView: View {
         guard elapsedSeconds > 0 else { return }
         
         let today = Calendar.current.startOfDay(for: Date())
+        let templateID = exercise.templateID ?? exercise.name
         let exerciseID = exercise.id
-        let descriptor = FetchDescriptor<PracticeSession>(
+
+        // 1) Upsert PracticeSession — accumulates timer duration for today
+        let sessionDescriptor = FetchDescriptor<PracticeSession>(
             predicate: #Predicate { $0.exerciseID == exerciseID && $0.date == today }
         )
-        if let existing = (try? modelContext.fetch(descriptor))?.first {
-            // Accumulate duration for today's session
+        if let existing = (try? modelContext.fetch(sessionDescriptor))?.first {
             existing.durationSeconds += elapsedSeconds
         } else {
             let session = PracticeSession(
                 exerciseID: exercise.id,
                 exerciseName: exercise.name,
                 durationSeconds: elapsedSeconds,
-                templateID: exercise.templateID ?? exercise.name
+                templateID: templateID
             )
             modelContext.insert(session)
         }
+
+        // 2) Ensure a PracticeEntry exists for today — this is what the history view shows.
+        //    Create one if it doesn't exist; if it already exists (e.g. from "Mark as Practiced"),
+        //    leave it alone (the duration is read from PracticeSession anyway).
+        let entryDescriptor = FetchDescriptor<PracticeEntry>(
+            predicate: #Predicate { $0.exerciseTemplateID == templateID && $0.date >= today }
+        )
+        if (try? modelContext.fetch(entryDescriptor))?.isEmpty != false {
+            let entry = PracticeEntry(
+                exerciseTemplateID: templateID,
+                exerciseName: exercise.name,
+                exerciseCategory: exercise.category
+            )
+            modelContext.insert(entry)
+        }
+
         try? modelContext.save()
     }
     
