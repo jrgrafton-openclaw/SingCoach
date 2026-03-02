@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import SwiftData
 
 struct PracticeToolsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -17,13 +18,6 @@ struct PracticeToolsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Grabber handle
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color.white.opacity(0.3))
-                .frame(width: 36, height: 5)
-                .padding(.top, 12)
-                .padding(.bottom, 20)
-            
             pitchDetectorSection
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
@@ -42,7 +36,7 @@ struct PracticeToolsView: View {
         .background(SingCoachTheme.background)
         .preferredColorScheme(.dark)
         .presentationDetents([.medium])
-        .presentationDragIndicator(.hidden)  // We draw our own grabber
+        .presentationDragIndicator(.visible)
         .onDisappear {
             toneGenerator.stop()
             pitchDetector.stop()
@@ -246,15 +240,26 @@ struct PracticeToolsView: View {
         timerCancellable = nil
         pitchDetector.stop()
         
-        if elapsedSeconds > 0 {
+        guard elapsedSeconds > 0 else { return }
+        
+        let today = Calendar.current.startOfDay(for: Date())
+        let exerciseID = exercise.id
+        let descriptor = FetchDescriptor<PracticeSession>(
+            predicate: #Predicate { $0.exerciseID == exerciseID && $0.date == today }
+        )
+        if let existing = (try? modelContext.fetch(descriptor))?.first {
+            // Accumulate duration for today's session
+            existing.durationSeconds += elapsedSeconds
+        } else {
             let session = PracticeSession(
                 exerciseID: exercise.id,
                 exerciseName: exercise.name,
-                durationSeconds: elapsedSeconds
+                durationSeconds: elapsedSeconds,
+                templateID: exercise.templateID ?? exercise.name
             )
             modelContext.insert(session)
-            try? modelContext.save()
         }
+        try? modelContext.save()
     }
     
     private func formatTime(_ seconds: Double) -> String {

@@ -31,6 +31,7 @@ struct PracticeView: View {
     @Query(sort: \Song.createdAt, order: .reverse) private var songs: [Song]
     @Query(sort: \Exercise.createdAt, order: .reverse) private var allExercises: [Exercise]
     @Query(sort: \PracticeEntry.date, order: .reverse) private var practiceHistory: [PracticeEntry]
+    @Query private var practiceSessions: [PracticeSession]
 
     // Exercises from the most recent recording (lesson OR performance) that has AI recommendations.
     // Previously used mostRecentLesson which filtered out performances — fixed.
@@ -80,8 +81,11 @@ struct PracticeView: View {
 
                         // ── Practice history ──────────────────────────────────────
                         if !practiceHistory.isEmpty {
-                            PracticeHistoryView(history: Array(practiceHistory.prefix(20)))
-                                .padding(.top, 4)
+                            PracticeHistoryView(
+                                history: Array(practiceHistory.prefix(20)),
+                                practiceSessions: Array(practiceSessions)
+                            )
+                            .padding(.top, 4)
                         }
                     }
                     .padding(.bottom, 20)
@@ -173,6 +177,7 @@ struct StatCard: View {
 
 struct PracticeHistoryView: View {
     let history: [PracticeEntry]
+    let practiceSessions: [PracticeSession]
     @Environment(\.modelContext) private var modelContext
 
     /// Groups entries by calendar day, most recent day first.
@@ -189,6 +194,15 @@ struct PracticeHistoryView: View {
         let f = DateFormatter()
         f.dateFormat = "EEE, MMM d"
         return f.string(from: date)
+    }
+
+    /// Total practice tool seconds for a given exercise on a given day.
+    private func practiceSeconds(for entry: PracticeEntry, on day: Date) -> Double {
+        let dayStart = Calendar.current.startOfDay(for: day)
+        return practiceSessions
+            .filter { $0.templateID == entry.exerciseTemplateID && $0.date == dayStart }
+            .map(\.durationSeconds)
+            .reduce(0, +)
     }
 
     private func deleteEntry(_ entry: PracticeEntry) {
@@ -215,7 +229,10 @@ struct PracticeHistoryView: View {
                     VStack(spacing: 6) {
                         ForEach(group.entries) { entry in
                             SwipeToDeleteRow(onDelete: { deleteEntry(entry) }) {
-                                PracticeHistoryEntryRow(entry: entry)
+                                PracticeHistoryEntryRow(
+                                    entry: entry,
+                                    practiceSeconds: practiceSeconds(for: entry, on: group.date)
+                                )
                             }
                             .padding(.horizontal, 16)
                         }
@@ -298,6 +315,16 @@ struct SwipeToDeleteRow<Content: View>: View {
 
 struct PracticeHistoryEntryRow: View {
     let entry: PracticeEntry
+    var practiceSeconds: Double = 0
+
+    private func formatDuration(_ seconds: Double) -> String {
+        let total = Int(seconds)
+        guard total > 0 else { return "" }
+        let mins = total / 60
+        let secs = total % 60
+        if mins == 0 { return "\(secs)s" }
+        return secs > 0 ? "\(mins)m \(secs)s" : "\(mins)m"
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -314,9 +341,17 @@ struct PracticeHistoryEntryRow: View {
                     .foregroundColor(SingCoachTheme.textSecondary)
             }
             Spacer()
-            Text(entry.date, style: .time)
-                .font(.system(size: 11))
-                .foregroundColor(SingCoachTheme.textSecondary)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(entry.date, style: .time)
+                    .font(.system(size: 11))
+                    .foregroundColor(SingCoachTheme.textSecondary)
+                let durationStr = formatDuration(practiceSeconds)
+                if !durationStr.isEmpty {
+                    Text(durationStr)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(SingCoachTheme.accent)
+                }
+            }
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 14)
