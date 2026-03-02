@@ -327,10 +327,14 @@ struct PracticeHistoryEntryRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        let durationStr = formatDuration(practiceSeconds)
+        HStack(alignment: .center, spacing: 10) {
+            // Leading: checkmark icon
             Image(systemName: "checkmark.circle.fill")
                 .foregroundColor(.green)
                 .font(.system(size: 14))
+
+            // Centre: exercise name + category
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.exerciseName)
                     .font(.system(size: 14, weight: .medium))
@@ -340,16 +344,27 @@ struct PracticeHistoryEntryRow: View {
                     .font(.system(size: 11))
                     .foregroundColor(SingCoachTheme.textSecondary)
             }
+
             Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
+
+            // Trailing: timestamp + optional timer pill
+            VStack(alignment: .trailing, spacing: 4) {
                 Text(entry.date, style: .time)
                     .font(.system(size: 11))
                     .foregroundColor(SingCoachTheme.textSecondary)
-                let durationStr = formatDuration(practiceSeconds)
+
                 if !durationStr.isEmpty {
-                    Text(durationStr)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(SingCoachTheme.accent)
+                    HStack(spacing: 3) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(durationStr)
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundColor(SingCoachTheme.accent)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(SingCoachTheme.accent.opacity(0.15))
+                    .cornerRadius(6)
                 }
             }
         }
