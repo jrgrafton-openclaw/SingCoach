@@ -33,8 +33,48 @@ platform :ios do
     "/tmp/asc_api_key.json"
   end
 
+  # Regenerate the .xcodeproj from project.yml so the pbxproj always starts from a known
+  # clean state (Automatic + Apple Development). project.yml is the source of truth.
+  private_lane :regen_project do
+    project_root = File.expand_path("..", __dir__)
+    sh "cd '#{project_root}' && xcodegen generate"
+  end
+
+  desc "Build the debug app and install it on the connected iPhone via devicectl."
+  desc "Regens the project first (clean Dev signing) and uses -allowProvisioningUpdates"
+  desc "so the Development profile is auto-fetched if needed."
+  lane :install do
+    regen_project
+
+    # Auto-detect the first connected real iOS device.
+    detected = sh("xcrun devicectl list devices 2>/dev/null | awk '/iPhone/ && /connected/ {print $(NF-2); exit}'", log: false).strip
+    UI.user_error!("No connected iPhone found via devicectl") if detected.empty?
+    device_id = detected
+    UI.message("Installing onto device #{device_id}")
+
+    project_root = File.expand_path("..", __dir__)
+    sh %Q{
+      cd '#{project_root}' && \
+      xcodebuild \
+        -scheme SingCoach \
+        -destination 'platform=iOS,id=#{device_id}' \
+        -configuration Debug \
+        -allowProvisioningUpdates \
+        build > /tmp/xcodebuild-dev.log 2>&1 || (tail -50 /tmp/xcodebuild-dev.log >&2; exit 1)
+    }
+
+    app_path = Dir.glob(File.expand_path("~/Library/Developer/Xcode/DerivedData/SingCoach-*/Build/Products/Debug-iphoneos/SingCoach.app")).first
+    UI.user_error!("Built .app not found in DerivedData") if app_path.nil?
+
+    sh "xcrun devicectl device install app --device #{device_id} '#{app_path}'"
+    UI.success("Installed SingCoach (Debug) on #{device_id}")
+  end
+
   lane :beta do
     api_key
+
+    # Start from clean pbxproj — undo any lingering manual-signing edits.
+    regen_project
 
     # Unlock the no-password build keychain and grant codesign access.
     # set-key-partition-list MUST complete before xcodebuild starts — otherwise
@@ -260,11 +300,17 @@ PYEOF
 
     add_git_tag(tag: "v#{version_number}-build#{build_number}")
     push_git_tags
+    # Commit only Info.plist (build bump). pbxproj is regenerated from project.yml below
+    # and should never be persisted with Fastlane's transient manual-signing edits.
     git_commit(
-      path: ["SingCoach.xcodeproj/project.pbxproj", "SingCoach/Info.plist"],
+      path: ["SingCoach/Info.plist"],
       message: "[ci skip] Bump build to #{build_number}",
       allow_nothing_to_commit: true
     )
     push_to_git_remote
+
+    # Leave the working tree clean: undo Fastlane's manual-signing edits to pbxproj so
+    # the next `fastlane install` (or Xcode Run) just works without UI gymnastics.
+    regen_project
   end
 end

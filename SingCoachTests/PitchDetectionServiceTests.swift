@@ -179,9 +179,8 @@ final class PitchDetectionServiceTests: XCTestCase {
         let sampleRate: Double = 44100
         let frequency: Double = 440.0
         let frameCount = 4096
-        var samples = [Float](repeating: 0, count: frameCount)
-        for i in 0..<frameCount {
-            samples[i] = Float(sin(2.0 * .pi * frequency * Double(i) / sampleRate))
+        let samples: [Float] = (0..<frameCount).map { i in
+            Float(sin(2.0 * .pi * frequency * Double(i) / sampleRate))
         }
 
         // Simulate what the tap callback does: hop to main queue

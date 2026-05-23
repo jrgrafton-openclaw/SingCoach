@@ -926,6 +926,7 @@ struct LessonsSection: View {
     func retranscribe(_ lesson: Lesson) {
         retranscribingID = lesson.id
         let allExercises = (try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? []
+        let exerciseLibrary = allExercises.map { AIExerciseSummary(name: $0.name, category: $0.category) }
         let audioFileURL = lesson.audioFileURL
         let isPerformance = lesson.isPerformance
 
@@ -938,7 +939,7 @@ struct LessonsSection: View {
                 let (result, transcript) = try await service.analyze(
                     audioFileURL: audioFileURL,
                     isPerformance: isPerformance,
-                    allExercises: allExercises
+                    exerciseLibrary: exerciseLibrary
                 )
                 lesson.transcript = transcript
                 lesson.transcriptionStatus = TranscriptionStatus.done.rawValue
@@ -1156,9 +1157,11 @@ struct LessonDetailSheet: View {
     // Bug 8 fix: show load error
     @State private var showLoadError = false
     // AI Analysis
-    @State private var isAnalyzing = false
+    @State private var analysisStage: AnalysisStage?
     @State private var analysisResult: AIAnalysisResult?
     @State private var analysisError: String?
+
+    private var isAnalyzing: Bool { analysisStage != nil }
 
     let speeds: [Float] = [0.75, 1.0, 1.25, 1.5]
 
@@ -1302,7 +1305,8 @@ struct LessonDetailSheet: View {
                         // AI Analysis card
                         AIAnalysisCard(
                             result: analysisResult,
-                            isAnalyzing: isAnalyzing,
+                            stage: analysisStage,
+                            audioDurationSeconds: lesson.durationSeconds,
                             errorMessage: analysisError,
                             onAnalyze: { runAnalysis() },
                             onSeekTo: { seconds in player.seek(to: seconds) }
@@ -1373,9 +1377,10 @@ struct LessonDetailSheet: View {
 
     func runAnalysis() {
         guard !isAnalyzing else { return }
-        isAnalyzing = true
+        analysisStage = .loadingAudio(sizeMB: 0)
         analysisError = nil
         let allExercises = (try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? []
+        let exerciseLibrary = allExercises.map { AIExerciseSummary(name: $0.name, category: $0.category) }
         let audioFileURL = lesson.audioFileURL
         let isPerformance = lesson.isPerformance
 
@@ -1388,8 +1393,13 @@ struct LessonDetailSheet: View {
                 let (result, transcript) = try await service.analyze(
                     audioFileURL: audioFileURL,
                     isPerformance: isPerformance,
-                    allExercises: allExercises
+                    exerciseLibrary: exerciseLibrary,
+                    onProgress: { stage in
+                        analysisStage = stage
+                    }
                 )
+
+                analysisStage = .saving
 
                 // Persist transcript
                 lesson.transcript = transcript
@@ -1423,7 +1433,7 @@ struct LessonDetailSheet: View {
                 print("[SingCoach] AI analysis failed: \(error)")
             }
 
-            isAnalyzing = false
+            analysisStage = nil
         }
     }
 
@@ -1917,10 +1927,21 @@ struct TranscriptView: View {
 
 struct AIAnalysisCard: View {
     let result: AIAnalysisResult?
-    let isAnalyzing: Bool
+    let stage: AnalysisStage?
+    let audioDurationSeconds: Double
     let errorMessage: String?
     let onAnalyze: () -> Void
     var onSeekTo: ((TimeInterval) -> Void)? = nil  // seek player to timestamp on moment tap
+
+    @State private var analyzingStartedAt: Date?
+
+    private var isAnalyzing: Bool { stage != nil }
+
+    /// Self-tuning estimate from real production runs (rolling mean of last N analyses).
+    /// Defaults to 60s until 3+ samples have been recorded.
+    private var estimatedAnalysisSeconds: Int {
+        AIAnalysisTimingStore.shared.estimate(audioSeconds: audioDurationSeconds)
+    }
 
     private let aiGreen = Color(hex: "#30D158")
 
@@ -1962,16 +1983,65 @@ struct AIAnalysisCard: View {
             }
             .padding(.bottom, 14)
 
-            if isAnalyzing {
-                // Loading state
-                HStack(spacing: 10) {
-                    ProgressView()
-                    Text("Transcribing and analysing…")
-                        .font(.system(size: 14))
-                        .foregroundColor(SingCoachTheme.textSecondary)
+            if let stage {
+                // Loading state — pipeline stage label + live progress bar when scoring.
+                VStack(alignment: .leading, spacing: 10) {
+                    if case .analyzing = stage, let startedAt = analyzingStartedAt {
+                        TimelineView(.periodic(from: startedAt, by: 0.25)) { context in
+                            let elapsed = context.date.timeIntervalSince(startedAt)
+                            let eta = Double(estimatedAnalysisSeconds)
+                            // Cap at 90% if we've blown past the estimate — don't lie about completion.
+                            let progress = elapsed > eta
+                                ? 0.9
+                                : min(0.9, elapsed / eta)
+                            let elapsedSec = Int(elapsed)
+                            let suffix = elapsed > eta ? "still working…" : "~\(estimatedAnalysisSeconds)s est."
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text("Scoring performance")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(SingCoachTheme.textSecondary)
+                                    Spacer()
+                                    Text("\(elapsedSec)s / \(suffix)")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(SingCoachTheme.textSecondary)
+                                        .monospacedDigit()
+                                }
+                                ProgressView(value: progress)
+                                    .tint(SingCoachTheme.accent)
+                            }
+                        }
+                    } else {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                            Text(stage.displayText)
+                                .font(.system(size: 14))
+                                .foregroundColor(SingCoachTheme.textSecondary)
+                                .animation(.easeInOut(duration: 0.2), value: stage)
+                        }
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 8)
+                .onChange(of: stage) { oldStage, newStage in
+                    if case .analyzing = newStage {
+                        analyzingStartedAt = Date()
+                    } else if case .analyzing = oldStage,
+                              newStage != nil,
+                              let started = analyzingStartedAt {
+                        // Successful exit from analyzing — record timing for self-tuning.
+                        // (newStage == nil = failure path, don't poison the dataset.)
+                        let actual = Date().timeIntervalSince(started)
+                        AIAnalysisTimingStore.shared.record(
+                            audioSec: audioDurationSeconds,
+                            actualSec: actual
+                        )
+                        analyzingStartedAt = nil
+                    } else if newStage == nil {
+                        analyzingStartedAt = nil
+                    }
+                }
 
             } else if let result = result {
                 // Score pills row — all pills are uniform (no selected/outlined state)

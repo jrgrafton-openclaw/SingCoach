@@ -6,29 +6,31 @@ import FirebaseAI
 // without needing access to Firebase SDK internals.
 
 protocol AITextGenerator: Sendable {
-    /// Sends audio bytes + mime type to the model, returns the text response.
-    func generateText(audioData: Data, mimeType: String) async throws -> String
-    /// Sends a text-only prompt, returns the model's text response.
-    func generateText(prompt: String) async throws -> String
+    /// Sends audio bytes + a text prompt to the model in one request, returns the text response.
+    /// This is the single-call architecture: Pro listens to the audio AND scores it.
+    func generateText(audioData: Data, mimeType: String, prompt: String) async throws -> String
 }
 
 // Production implementation backed by a real Firebase GenerativeModel
 struct FirebaseTextGenerator: AITextGenerator {
     let model: GenerativeModel
 
-    func generateText(audioData: Data, mimeType: String) async throws -> String {
+    func generateText(audioData: Data, mimeType: String, prompt: String) async throws -> String {
         let audioPart = InlineDataPart(data: audioData, mimeType: mimeType)
-        let response = try await model.generateContent(audioPart)
-        guard let text = response.text else {
-            throw URLError(.badServerResponse)
-        }
-        return text
-    }
+        let response = try await model.generateContent(audioPart, prompt)
 
-    func generateText(prompt: String) async throws -> String {
-        let response = try await model.generateContent(prompt)
+        // Surface the most useful failure reason we can extract from the response.
+        if let block = response.promptFeedback?.blockReason {
+            let extra = response.promptFeedback?.blockReasonMessage.map { ": \($0)" } ?? ""
+            throw GeminiAnalysisError.analysisFailed("Prompt blocked (\(block.rawValue))\(extra)")
+        }
+        if let candidate = response.candidates.first,
+           let reason = candidate.finishReason,
+           reason != .stop {
+            throw GeminiAnalysisError.analysisFailed("Model stopped early: \(reason.rawValue)")
+        }
         guard let text = response.text else {
-            throw URLError(.badServerResponse)
+            throw GeminiAnalysisError.analysisFailed("Empty response (no candidates returned)")
         }
         return text
     }
@@ -50,6 +52,13 @@ struct AIAnalysisResult: Codable {
     var tldr: String
     var keyMoments: [AIKeyMoment]
     var recommendedExerciseNames: [String]
+}
+
+/// Sendable summary of an Exercise — used to pass the library across actor boundaries
+/// into `analyze(...)` (which is nonisolated) without crossing a `@Model` over the wire.
+struct AIExerciseSummary: Sendable {
+    let name: String
+    let category: String
 }
 
 // MARK: - Errors
@@ -77,39 +86,57 @@ enum GeminiAnalysisError: LocalizedError {
     }
 }
 
+// MARK: - Progress
+
+/// Stages reported via `onProgress` during `analyze(...)`. UI binds to this to show
+/// the user where in the pipeline we are.
+enum AnalysisStage: Sendable, Equatable {
+    case loadingAudio(sizeMB: Double)
+    case transcribing
+    case analyzing
+    case matchingExercises
+    case saving
+
+    var displayText: String {
+        switch self {
+        case .loadingAudio(let mb):
+            return "Loading audio (\(String(format: "%.1f", mb)) MB)…"
+        case .transcribing:
+            return "Transcribing audio…"
+        case .analyzing:
+            return "Scoring performance…"
+        case .matchingExercises:
+            return "Choosing exercises…"
+        case .saving:
+            return "Saving results…"
+        }
+    }
+}
+
+typealias AnalysisProgressCallback = @Sendable @MainActor (AnalysisStage) -> Void
+
 // MARK: - Service
 
 final class GeminiAnalysisService {
 
     private let maxFileSizeBytes = 19 * 1024 * 1024 // 19 MB safety margin
 
-    // Overrideable for testing; nil = use real Firebase models
-    private let flashGenerator: AITextGenerator?
+    // Overrideable for testing; nil = use real Firebase model
     private let proGenerator: AITextGenerator?
 
-    /// Production init — uses real Firebase Vertex AI models.
+    /// Production init — uses real Firebase Vertex AI model.
     init() {
-        self.flashGenerator = nil
         self.proGenerator = nil
     }
 
-    /// Test init — inject mock generators to avoid real Firebase HTTP calls.
-    init(flashGenerator: any AITextGenerator, proGenerator: any AITextGenerator) {
-        self.flashGenerator = flashGenerator
+    /// Test init — inject mock generator to avoid real Firebase HTTP calls.
+    init(proGenerator: any AITextGenerator) {
         self.proGenerator = proGenerator
     }
 
-    private func makeFlashGenerator() -> any AITextGenerator {
-        if let g = flashGenerator { return g }
-        let ai = FirebaseAI.firebaseAI(backend: .vertexAI())
-        return FirebaseTextGenerator(model: ai.generativeModel(
-            modelName: "gemini-2.0-flash",
-            systemInstruction: ModelContent(role: "system", parts: transcriptionSystemPrompt)
-        ))
-    }
-
     /// Builds a `GenerativeModel` whose response is constrained to valid JSON matching the
-    /// `AIAnalysisResult` schema, with `recommendedExerciseNames` locked to the provided list.
+    /// `AIAnalysisResponse` schema, with `recommendedExerciseNames` locked to the provided list.
+    /// Pro 3.x listens to the audio AND scores it in one call — no separate transcription pass.
     private func makeProGenerator(isPerformance: Bool, exerciseNames: [String]) -> any AITextGenerator {
         if let g = proGenerator { return g }
         // Gemini 3.x preview models are only available on the global endpoint,
@@ -141,10 +168,11 @@ final class GeminiAnalysisService {
 
         return Schema.object(
             properties: [
-                "overall":   .double(description: "0.0–10.0 holistic score"),
-                "pitch":     .double(description: "0.0–10.0 intonation score"),
-                "tone":      .double(description: "0.0–10.0 resonance / vocal colour score"),
-                "breath":    .double(description: "0.0–10.0 breath support score"),
+                "transcript": .string(description: "Full transcript of what was sung/spoken, with [M:SS] markers at each paragraph or scene change"),
+                "overall":   .double(description: "0.0–10.0 holistic score based on what was actually heard"),
+                "pitch":     .double(description: "0.0–10.0 intonation score based on actual pitch accuracy heard"),
+                "tone":      .double(description: "0.0–10.0 resonance / vocal colour score based on actual sound heard"),
+                "breath":    .double(description: "0.0–10.0 breath support score based on phrase endings and tension heard"),
                 "timing":    .double(description: "0.0–10.0 rhythm and feel score"),
                 "tldr":      .string(description: "2–3 sentence summary of the performance"),
                 "keyMoments": .array(
@@ -166,14 +194,33 @@ final class GeminiAnalysisService {
         )
     }
 
+    /// Wire-format struct matching the Pro response schema (transcript + analysis fields).
+    /// Split into `AIAnalysisResult` + `transcript` String after decoding so the stored
+    /// `aiAnalysis` JSON on `Lesson` stays backwards-compatible.
+    private struct AIAnalysisResponse: Codable {
+        var transcript: String
+        var overall: Double
+        var pitch: Double
+        var tone: Double
+        var breath: Double
+        var timing: Double
+        var tldr: String
+        var keyMoments: [AIKeyMoment]
+        var recommendedExerciseNames: [String]
+    }
+
     // MARK: - Public API
 
-    /// Full pipeline: transcription via Flash → analysis + recommendations via Pro 3.1.
-    /// Accepts primitives (no SwiftData models) so it is safe to call across actor boundaries.
+    /// Full pipeline: single Pro 3.1 call with audio + analysis prompt.
+    /// Pro listens to the audio AND scores it acoustically (pitch, tone, breath all derived
+    /// from the actual sound, not just a text transcript). Returns the transcript plus the
+    /// structured analysis. Accepts primitives (no SwiftData models) so it is safe to call
+    /// across actor boundaries. Pass `onProgress` to receive stage updates for UI display.
     func analyze(
         audioFileURL: String,
         isPerformance: Bool,
-        allExercises: [Exercise]
+        exerciseLibrary: [AIExerciseSummary],
+        onProgress: AnalysisProgressCallback? = nil
     ) async throws -> (result: AIAnalysisResult, transcript: String) {
 
         let audioURL = AudioPathResolver.resolvedURL(audioFileURL)
@@ -187,26 +234,45 @@ final class GeminiAnalysisService {
             throw GeminiAnalysisError.audioFileTooLarge(sizeMB: Double(fileSize) / 1_048_576)
         }
 
+        await report(onProgress, .loadingAudio(sizeMB: Double(fileSize) / 1_048_576))
+
         let audioData = try Data(contentsOf: audioURL)
-        let mimeType: String
-        switch audioURL.pathExtension.lowercased() {
-        case "mp3":  mimeType = "audio/mpeg"
-        case "wav":  mimeType = "audio/wav"
-        case "aac":  mimeType = "audio/aac"
-        default:     mimeType = "audio/mp4"  // m4a, mp4
-        }
+        let mimeType = Self.mimeType(for: audioURL)
 
-        // Step 1 — Transcription (cheap Flash model)
-        let transcript = try await transcribe(audioData: audioData, mimeType: mimeType)
-
-        // Step 2 — Analysis + recommendations (Pro 3.1)
-        let result = try await analyzeTranscript(
-            transcript: transcript,
+        await report(onProgress, .analyzing)
+        let response = try await runProAnalysis(
+            audioData: audioData,
+            mimeType: mimeType,
             isPerformance: isPerformance,
-            allExercises: allExercises
+            exerciseLibrary: exerciseLibrary
         )
 
-        return (result, transcript)
+        await report(onProgress, .matchingExercises)
+        let result = AIAnalysisResult(
+            overall: response.overall,
+            pitch: response.pitch,
+            tone: response.tone,
+            breath: response.breath,
+            timing: response.timing,
+            tldr: response.tldr,
+            keyMoments: response.keyMoments,
+            recommendedExerciseNames: response.recommendedExerciseNames
+        )
+        return (result, response.transcript)
+    }
+
+    private static func mimeType(for url: URL) -> String {
+        switch url.pathExtension.lowercased() {
+        case "mp3":  return "audio/mpeg"
+        case "wav":  return "audio/wav"
+        case "aac":  return "audio/aac"
+        default:     return "audio/mp4"  // m4a, mp4
+        }
+    }
+
+    private func report(_ cb: AnalysisProgressCallback?, _ stage: AnalysisStage) async {
+        guard let cb else { return }
+        await cb(stage)
     }
 
     // MARK: - Match recommended names to Exercise objects
@@ -299,60 +365,44 @@ final class GeminiAnalysisService {
         return best?.exercise
     }
 
-    // MARK: - Step 1: Transcription
+    // MARK: - Single Pro call (audio + analysis prompt)
 
-    private func transcribe(audioData: Data, mimeType: String) async throws -> String {
-        let generator = makeFlashGenerator()
-
-        do {
-            let text = try await generator.generateText(audioData: audioData, mimeType: mimeType)
-            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw GeminiAnalysisError.transcriptionFailed("Model returned empty transcript")
-            }
-            return text
-        } catch let e as GeminiAnalysisError {
-            throw e
-        } catch {
-            throw GeminiAnalysisError.transcriptionFailed(error.localizedDescription)
-        }
-    }
-
-    // MARK: - Step 2: Analysis
-
-    private func analyzeTranscript(
-        transcript: String,
+    private func runProAnalysis(
+        audioData: Data,
+        mimeType: String,
         isPerformance: Bool,
-        allExercises: [Exercise]
-    ) async throws -> AIAnalysisResult {
+        exerciseLibrary: [AIExerciseSummary]
+    ) async throws -> AIAnalysisResponse {
 
-        let exerciseNames = allExercises.map(\.name)
+        let exerciseNames = exerciseLibrary.map(\.name)
         // Model is created with a response schema that constrains recommendedExerciseNames
         // to exactly the exercise names in the library — no fuzzy matching needed.
         let generator = makeProGenerator(isPerformance: isPerformance, exerciseNames: exerciseNames)
 
-        let exerciseList = allExercises.isEmpty
+        let exerciseList = exerciseLibrary.isEmpty
             ? "(no exercises in library yet)"
-            : allExercises.map { "- \($0.name) [\($0.category)]" }.joined(separator: "\n")
+            : exerciseLibrary.map { "- \($0.name) [\($0.category)]" }.joined(separator: "\n")
 
         let userPrompt = """
-        TRANSCRIPT:
-        \(transcript)
-
-        ---
+        Listen to the attached audio and produce the structured analysis described in the system instruction.
+        Base your pitch, tone, breath, and timing scores on what you can actually hear in the audio,
+        not on the words being sung. Include an accurate timestamped transcript in the `transcript` field.
 
         AVAILABLE EXERCISES (use EXACT names when recommending):
         \(exerciseList)
-
-        ---
 
         Respond with ONLY the JSON object. No markdown fences, no explanation.
         """
 
         let raw: String
         do {
-            raw = try await generator.generateText(prompt: userPrompt)
+            raw = try await withRetry {
+                try await generator.generateText(audioData: audioData, mimeType: mimeType, prompt: userPrompt)
+            }
+        } catch let e as GeminiAnalysisError {
+            throw e
         } catch {
-            throw GeminiAnalysisError.analysisFailed(error.localizedDescription)
+            throw GeminiAnalysisError.analysisFailed(Self.describe(error))
         }
 
         let cleaned = stripCodeFences(raw)
@@ -362,32 +412,74 @@ final class GeminiAnalysisService {
         }
 
         do {
-            return try JSONDecoder().decode(AIAnalysisResult.self, from: data)
+            return try JSONDecoder().decode(AIAnalysisResponse.self, from: data)
         } catch {
-            throw GeminiAnalysisError.invalidResponse(String(cleaned.prefix(300)))
+            throw GeminiAnalysisError.invalidResponse("JSON decode failed: \(error.localizedDescription). First 300 chars: \(String(cleaned.prefix(300)))")
+        }
+    }
+
+    // MARK: - Error description & retry
+
+    /// Pull every useful detail out of an error from Firebase AI / URL session.
+    /// Surfaces NSError domain+code, underlying chain, and any text body so the user
+    /// sees something more actionable than "FirebaseAiGenerateContent error 0".
+    static func describe(_ error: Error) -> String {
+        let ns = error as NSError
+        var parts: [String] = []
+        parts.append("\(ns.domain) code \(ns.code)")
+        let msg = error.localizedDescription
+        if !msg.isEmpty, !msg.contains("code \(ns.code)") {
+            parts.append(msg)
+        }
+        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts.append("underlying \(underlying.domain) \(underlying.code): \(underlying.localizedDescription)")
+        }
+        // FirebaseAI often stuffs server text into userInfo under various keys.
+        for (key, value) in ns.userInfo where !["NSUnderlyingError"].contains(key) {
+            if let s = value as? String, !s.isEmpty, !parts.contains(s) {
+                parts.append("\(key): \(String(s.prefix(200)))")
+            }
+        }
+        return parts.joined(separator: " | ")
+    }
+
+    /// One retry with backoff for transient network / 5xx / rate-limit failures.
+    private func withRetry<T: Sendable>(
+        _ operation: @Sendable () async throws -> T
+    ) async throws -> T {
+        do {
+            return try await operation()
+        } catch {
+            let ns = error as NSError
+            let msg = error.localizedDescription.lowercased()
+            let transient = ns.domain == NSURLErrorDomain
+                || (500...599).contains(ns.code)
+                || msg.contains("rate")
+                || msg.contains("timeout")
+                || msg.contains("unavailable")
+                || msg.contains("temporarily")
+            guard transient else { throw error }
+            print("[SingCoach] Gemini call transient failure, retrying once: \(Self.describe(error))")
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            return try await operation()
         }
     }
 
     // MARK: - Prompts
 
-    private var transcriptionSystemPrompt: String {
-        """
-        You are an expert audio transcriptionist. Transcribe the audio recording as accurately as possible.
-        Insert a timestamp marker in the format [M:SS] at the start of each new paragraph or whenever \
-        the speaker, topic, or scene changes significantly.
-        Output ONLY the transcript text with embedded timestamp markers. No commentary, headers, or extra text.
-        """
-    }
-
     private var performanceSystemPrompt: String {
         """
-        You are an expert vocal coach evaluating a student's solo singing performance.
-        You will receive a timestamped transcript of the recording.
+        You are an expert vocal coach evaluating a student's solo singing performance from an audio recording.
+        Listen to the audio carefully. Your scores must reflect what you actually hear, not assumptions
+        about the song or words.
 
-        Evaluate these five dimensions on a 0.0–10.0 scale:
+        First, produce an accurate transcript of what is sung, inserting [M:SS] timestamp markers at the
+        start of each new section, verse, or notable change. Put this in the `transcript` field.
+
+        Then evaluate these five dimensions on a 0.0–10.0 scale based on the actual sound:
         • pitch  — intonation accuracy, staying on note, interval accuracy
         • tone   — resonance, warmth, consistency of vocal colour
-        • breath — support, phrase length, control, tension signs
+        • breath — support, phrase length, control, audible tension or breath noise
         • timing — rhythm, feel, phrasing groove
         • overall — holistic impression, weighted toward pitch and tone
 
@@ -398,7 +490,7 @@ final class GeminiAnalysisService {
           1–3   Foundational technical issues across multiple areas
 
         tldr: 2–3 sentences — biggest strength, clearest area to improve, and the single most impactful drill.
-        keyMoments: 3–5 timestamped moments (both positives and issues).
+        keyMoments: 3–5 timestamped moments referencing what you heard (both positives and issues).
         recommendedExerciseNames: choose 4–6 exercises from the provided list that cover the weakest dimensions. \
         If breath, pitch, and tone all need work, include at least one exercise per area. \
         Do not cluster all picks into one category.
@@ -407,11 +499,14 @@ final class GeminiAnalysisService {
 
     private var lessonSystemPrompt: String {
         """
-        You are an expert vocal coach analysing a student's singing lesson from a transcript.
-        The transcript contains both teacher instruction and student singing.
-        Base ALL scores ONLY on the student's actual singing — exclude teacher demonstrations.
+        You are an expert vocal coach analysing a student's singing lesson from an audio recording.
+        The audio contains both teacher instruction and student singing/exercises.
+        Base ALL scores ONLY on the student's actual singing — exclude teacher demonstrations and speech.
 
-        Evaluate these five dimensions on a 0.0–10.0 scale:
+        First, produce an accurate transcript with [M:SS] timestamp markers at section boundaries
+        and put it in the `transcript` field. Distinguish teacher from student in the transcript when clear.
+
+        Then evaluate these five dimensions on a 0.0–10.0 scale based on the student's actual singing:
         • pitch  — intonation accuracy in exercises and song attempts
         • tone   — resonance and quality when the student sings
         • breath — support and control during the student's singing

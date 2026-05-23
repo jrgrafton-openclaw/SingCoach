@@ -97,11 +97,12 @@ final class GeminiFullPipelineIntegrationTests: IntegrationTestCase {
         ]
 
         let service = GeminiAnalysisService() // production init — real Firebase
+        let library = exercises.map { AIExerciseSummary(name: $0.name, category: $0.category) }
 
         let (result, transcript) = try await service.analyze(
             audioFileURL: relativePath,
             isPerformance: true,
-            allExercises: exercises
+            exerciseLibrary: library
         )
 
         print("✅ Transcript: \(transcript.prefix(200))")

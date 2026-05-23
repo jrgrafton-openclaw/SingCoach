@@ -1,6 +1,6 @@
 // GeminiAnalysisNetworkTests.swift
-// Tests the full GeminiAnalysisService.analyze() pipeline using injected mock generators.
-// This verifies the real logic path — audio file loading, two-call sequencing,
+// Tests the full GeminiAnalysisService.analyze() pipeline using an injected mock generator.
+// This verifies the real logic path — audio file loading, single-call Pro analysis,
 // response parsing, exercise matching, and all error cases — without making live HTTP calls.
 
 import XCTest
@@ -15,6 +15,9 @@ final class MockTextGenerator: AITextGenerator, @unchecked Sendable {
 
     private var responses: [Result<String, any Error>]
     private(set) var callCount = 0
+    private(set) var lastPrompt: String?
+    private(set) var lastAudioByteCount: Int?
+    private(set) var lastMimeType: String?
 
     init(results: [Result<String, any Error>]) {
         self.responses = results
@@ -28,11 +31,10 @@ final class MockTextGenerator: AITextGenerator, @unchecked Sendable {
         self.init(results: [.failure(error)])
     }
 
-    func generateText(audioData: Data, mimeType: String) async throws -> String {
-        return try dequeue()
-    }
-
-    func generateText(prompt: String) async throws -> String {
+    func generateText(audioData: Data, mimeType: String, prompt: String) async throws -> String {
+        lastPrompt = prompt
+        lastAudioByteCount = audioData.count
+        lastMimeType = mimeType
         return try dequeue()
     }
 
@@ -52,6 +54,7 @@ private let mockTranscript = "[0:00]\nThis is a test vocal lesson recording.\n\n
 
 private let mockAnalysisJSON = """
 {
+  "transcript": "[0:00]\\nThis is a test vocal lesson recording.\\n\\n[1:30]\\nNow we move to the chorus section.",
   "overall": 6.5,
   "pitch": 6.5,
   "tone": 6.5,
@@ -95,31 +98,29 @@ final class GeminiAnalysisNetworkTests: XCTestCase {
 
     // MARK: - Happy path
 
-    func testAnalyzeCallsFlashThenPro() async throws {
-        let flash = MockTextGenerator(texts: mockTranscript)
-        let pro   = MockTextGenerator(texts: mockAnalysisJSON)
-        let service = GeminiAnalysisService(flashGenerator: flash, proGenerator: pro)
+    func testAnalyzeCallsProOnce() async throws {
+        let pro = MockTextGenerator(texts: mockAnalysisJSON)
+        let service = GeminiAnalysisService(proGenerator: pro)
 
         _ = try await service.analyze(
             audioFileURL: testAudioPath,
             isPerformance: true,
-            allExercises: []
+            exerciseLibrary: []
         )
 
-        XCTAssertEqual(flash.callCount, 1, "Flash (transcription) should be called exactly once")
-        XCTAssertEqual(pro.callCount,   1, "Pro 3.1 (analysis) should be called exactly once")
+        XCTAssertEqual(pro.callCount, 1, "Pro should be called exactly once — single-call architecture")
+        XCTAssertEqual(pro.lastAudioByteCount, 1024, "Audio bytes should be forwarded to the model")
+        XCTAssertEqual(pro.lastMimeType, "audio/mp4", "m4a should map to audio/mp4 mime type")
+        XCTAssertNotNil(pro.lastPrompt, "A text prompt should be sent alongside the audio")
     }
 
     func testAnalyzeReturnsCorrectScores() async throws {
-        let service = GeminiAnalysisService(
-            flashGenerator: MockTextGenerator(texts: mockTranscript),
-            proGenerator:   MockTextGenerator(texts: mockAnalysisJSON)
-        )
+        let service = GeminiAnalysisService(proGenerator: MockTextGenerator(texts: mockAnalysisJSON))
 
         let (result, transcript) = try await service.analyze(
             audioFileURL: testAudioPath,
             isPerformance: true,
-            allExercises: []
+            exerciseLibrary: []
         )
 
         XCTAssertEqual(result.overall, 6.5, accuracy: 0.01)
@@ -130,40 +131,52 @@ final class GeminiAnalysisNetworkTests: XCTestCase {
         XCTAssertEqual(result.keyMoments.count, 2)
         XCTAssertEqual(result.recommendedExerciseNames.count, 3)
         XCTAssertFalse(transcript.isEmpty)
-        XCTAssertTrue(transcript.contains("[0:00]"), "Transcript should contain timestamp markers")
+        XCTAssertTrue(transcript.contains("[0:00]"), "Transcript extracted from response should contain timestamp markers")
     }
 
-    func testAnalyzeStoresTranscriptFromFlash() async throws {
-        let service = GeminiAnalysisService(
-            flashGenerator: MockTextGenerator(texts: mockTranscript),
-            proGenerator:   MockTextGenerator(texts: mockAnalysisJSON)
-        )
+    func testAnalyzeExtractsTranscriptFromResponse() async throws {
+        let service = GeminiAnalysisService(proGenerator: MockTextGenerator(texts: mockAnalysisJSON))
 
         let (_, transcript) = try await service.analyze(
             audioFileURL: testAudioPath,
             isPerformance: false,
-            allExercises: []
+            exerciseLibrary: []
         )
 
         XCTAssertEqual(transcript, mockTranscript,
-            "Transcript returned should exactly match Flash generator output")
+            "Transcript should match the `transcript` field in the Pro JSON response")
     }
 
     func testAnalyzeHandlesCodeFencedResponse() async throws {
         let fenced = "```json\n\(mockAnalysisJSON)\n```"
-        let service = GeminiAnalysisService(
-            flashGenerator: MockTextGenerator(texts: mockTranscript),
-            proGenerator:   MockTextGenerator(texts: fenced)
-        )
+        let service = GeminiAnalysisService(proGenerator: MockTextGenerator(texts: fenced))
 
         let (result, _) = try await service.analyze(
             audioFileURL: testAudioPath,
             isPerformance: true,
-            allExercises: []
+            exerciseLibrary: []
         )
 
         XCTAssertEqual(result.overall, 6.5, accuracy: 0.01,
             "Should parse JSON correctly even when wrapped in markdown code fences")
+    }
+
+    func testAnalyzeProgressCallbackFires() async throws {
+        let service = GeminiAnalysisService(proGenerator: MockTextGenerator(texts: mockAnalysisJSON))
+        let stages = Stages()
+
+        _ = try await service.analyze(
+            audioFileURL: testAudioPath,
+            isPerformance: true,
+            exerciseLibrary: [],
+            onProgress: { stage in stages.append(stage) }
+        )
+
+        let captured = stages.values
+        XCTAssertGreaterThanOrEqual(captured.count, 3, "Should report at least loadingAudio, analyzing, matchingExercises")
+        if case .loadingAudio = captured.first { /* ✅ */ } else { XCTFail("First stage should be loadingAudio") }
+        XCTAssertTrue(captured.contains(.analyzing))
+        XCTAssertTrue(captured.contains(.matchingExercises))
     }
 
     func testAnalyzeExerciseMatchingEndToEnd() async throws {
@@ -177,16 +190,13 @@ final class GeminiAnalysisNetworkTests: XCTestCase {
             Exercise(templateID: "rh", name: "Resonance Hum", category: "tone",
                      exerciseDescription: "", instruction: "", focusArea: "Tone"),
         ]
-
-        let service = GeminiAnalysisService(
-            flashGenerator: MockTextGenerator(texts: mockTranscript),
-            proGenerator:   MockTextGenerator(texts: mockAnalysisJSON)
-        )
+        let library = exercises.map { AIExerciseSummary(name: $0.name, category: $0.category) }
+        let service = GeminiAnalysisService(proGenerator: MockTextGenerator(texts: mockAnalysisJSON))
 
         let (result, _) = try await service.analyze(
             audioFileURL: testAudioPath,
             isPerformance: true,
-            allExercises: exercises
+            exerciseLibrary: library
         )
 
         let matched = service.matchExercises(names: result.recommendedExerciseNames, from: exercises)
@@ -200,16 +210,13 @@ final class GeminiAnalysisNetworkTests: XCTestCase {
     // MARK: - Error paths
 
     func testThrowsAudioFileNotFound() async throws {
-        let service = GeminiAnalysisService(
-            flashGenerator: MockTextGenerator(texts: mockTranscript),
-            proGenerator:   MockTextGenerator(texts: mockAnalysisJSON)
-        )
+        let service = GeminiAnalysisService(proGenerator: MockTextGenerator(texts: mockAnalysisJSON))
 
         do {
             _ = try await service.analyze(
                 audioFileURL: "/does/not/exist.m4a",
                 isPerformance: true,
-                allExercises: []
+                exerciseLibrary: []
             )
             XCTFail("Should throw audioFileNotFound")
         } catch GeminiAnalysisError.audioFileNotFound {
@@ -217,37 +224,15 @@ final class GeminiAnalysisNetworkTests: XCTestCase {
         }
     }
 
-    func testThrowsTranscriptionFailedWhenFlashErrors() async throws {
-        let flash = MockTextGenerator(error: URLError(.notConnectedToInternet))
-        let service = GeminiAnalysisService(
-            flashGenerator: flash,
-            proGenerator:   MockTextGenerator(texts: mockAnalysisJSON)
-        )
-
-        do {
-            _ = try await service.analyze(
-                audioFileURL: testAudioPath,
-                isPerformance: true,
-                allExercises: []
-            )
-            XCTFail("Should throw when Flash generator fails")
-        } catch GeminiAnalysisError.transcriptionFailed {
-            // ✅
-        }
-    }
-
     func testThrowsAnalysisFailedWhenProErrors() async throws {
-        let pro = MockTextGenerator(error: URLError(.timedOut))
-        let service = GeminiAnalysisService(
-            flashGenerator: MockTextGenerator(texts: mockTranscript),
-            proGenerator:   pro
-        )
+        // Use .badURL (non-transient) so the single-retry path doesn't mask the error.
+        let service = GeminiAnalysisService(proGenerator: MockTextGenerator(error: URLError(.badURL)))
 
         do {
             _ = try await service.analyze(
                 audioFileURL: testAudioPath,
                 isPerformance: true,
-                allExercises: []
+                exerciseLibrary: []
             )
             XCTFail("Should throw when Pro generator fails")
         } catch GeminiAnalysisError.analysisFailed {
@@ -257,36 +242,27 @@ final class GeminiAnalysisNetworkTests: XCTestCase {
 
     func testThrowsInvalidResponseWhenProReturnsNonJSON() async throws {
         let service = GeminiAnalysisService(
-            flashGenerator: MockTextGenerator(texts: mockTranscript),
-            proGenerator:   MockTextGenerator(texts: "Sorry, I cannot analyse this recording.")
+            proGenerator: MockTextGenerator(texts: "Sorry, I cannot analyse this recording.")
         )
 
         do {
             _ = try await service.analyze(
                 audioFileURL: testAudioPath,
                 isPerformance: true,
-                allExercises: []
+                exerciseLibrary: []
             )
             XCTFail("Should throw invalidResponse for non-JSON Pro output")
         } catch GeminiAnalysisError.invalidResponse {
             // ✅
         }
     }
+}
 
-    func testProIsNotCalledWhenFlashFails() async throws {
-        let pro = MockTextGenerator(texts: mockAnalysisJSON)
-        let service = GeminiAnalysisService(
-            flashGenerator: MockTextGenerator(error: URLError(.timedOut)),
-            proGenerator:   pro
-        )
+// MARK: - Helpers
 
-        _ = try? await service.analyze(
-            audioFileURL: testAudioPath,
-            isPerformance: true,
-            allExercises: []
-        )
-
-        XCTAssertEqual(pro.callCount, 0,
-            "Pro 3.1 should NOT be called if Flash transcription fails (saves cost)")
-    }
+/// Captures stage callbacks from a background actor context for assertion on the main thread.
+@MainActor
+private final class Stages {
+    private(set) var values: [AnalysisStage] = []
+    func append(_ s: AnalysisStage) { values.append(s) }
 }
