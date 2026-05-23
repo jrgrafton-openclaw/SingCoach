@@ -4,7 +4,6 @@ DerivedData/
 build/
 *.ipa
 *.dSYM.zip
-GoogleService-Info.plist
 Pods/
 .bundle/
 vendor/bundle/
